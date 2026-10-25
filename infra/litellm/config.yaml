@@ -1,0 +1,94 @@
+# LiteLLM proxy: Orchestrix model catalogue (SPEC 16, amendment A1).
+# Checked against the LiteLLM 1.106.2 source (litellm_proxy and ollama_chat providers, Router fallbacks).
+#
+# Agents ask for a role; orchestrix_agents.llm resolves the role to one of these model names
+# (task override -> admin default -> settings default). The router falls back from the VPN model
+# to host Ollama when the Yotta gateway is unreachable.
+
+model_list:
+  # Primary: gpt-oss-120b on the Yotta vLLM cluster, reached through its own LiteLLM gateway over VPN.
+  - model_name: gpt-oss-120b
+    litellm_params:
+      model: litellm_proxy/gpt-oss-120b
+      api_base: os.environ/REMOTE_LLM_BASE_URL
+      api_key: os.environ/REMOTE_LLM_API_KEY
+      timeout: 120
+    model_info:
+      mode: chat
+      max_input_tokens: 131072
+      supports_function_calling: true
+      supports_response_schema: true
+      supports_reasoning: true
+      # Only the remote model cools down: one timeout or connection failure benches it for five
+      # minutes, so a dropped VPN costs one timeout per window instead of one per call. Named
+      # exception types are required; a generic allowed_fails would be ignored on a
+      # single-deployment group (LiteLLM 1.106.2 router_utils/cooldown_handlers.py).
+      allowed_fails_policy:
+        TimeoutErrorAllowedFails: 0
+        InternalServerErrorAllowedFails: 0
+        ServiceUnavailableErrorAllowedFails: 0
+        BadGatewayErrorAllowedFails: 0
+      cooldown_time: 300
+
+  # Fallback: qwen3:8b on host Ollama. Thinking stays off; a gpt-oss reasoning_effort carried over
+  # by a fallback is dropped so it cannot switch thinking back on.
+  - model_name: qwen3-8b-local
+    litellm_params:
+      model: ollama_chat/qwen3:8b
+      api_base: os.environ/OLLAMA_BASE_URL
+      num_ctx: 16384
+      think: false
+      additional_drop_params: ["reasoning_effort"]
+      # Keep the weights resident: a cold load can take minutes when WSL is swapping.
+      keep_alive: 30m
+      timeout: 300
+    model_info:
+      mode: chat
+      max_input_tokens: 16384
+      supports_function_calling: true
+      supports_response_schema: true
+
+  # Memory embeddings: qwen3-embed on Yotta (2560 dims; amendment A5 as revised 2026-10-22).
+  # No local fallback: vectors from different models cannot share an index. When the VPN is down,
+  # memory search degrades to keyword search and writes are embedded later.
+  - model_name: embed
+    litellm_params:
+      model: litellm_proxy/qwen3-embed
+      api_base: os.environ/REMOTE_LLM_BASE_URL
+      api_key: os.environ/REMOTE_LLM_API_KEY
+      timeout: 30
+    model_info:
+      mode: embedding
+      output_vector_size: 2560
+
+  # Reranker for memory retrieval (M6). Local fastembed ONNX is the fallback, in-process.
+  - model_name: rerank
+    litellm_params:
+      model: litellm_proxy/qwen3-rerank
+      api_base: os.environ/REMOTE_LLM_BASE_URL
+      api_key: os.environ/REMOTE_LLM_API_KEY
+      timeout: 30
+    model_info:
+      mode: rerank
+
+  # Never reachable (connection refused): `make gateway-check` uses it to prove the fallback path.
+  # Hidden from the model picker by the app.
+  - model_name: fallback-probe
+    litellm_params:
+      model: litellm_proxy/fallback-probe
+      api_base: http://127.0.0.1:9/v1
+      api_key: unused
+      timeout: 5
+
+router_settings:
+  # No router-wide allowed_fails: it would switch LiteLLM to legacy cooldowns and bench the
+  # single local fallback too. Cooldown is configured on the remote deployment only.
+  num_retries: 1
+  timeout: 120
+  fallbacks:
+    - gpt-oss-120b: ["qwen3-8b-local"]
+    - fallback-probe: ["qwen3-8b-local"]
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  database_url: os.environ/LITELLM_DATABASE_URL

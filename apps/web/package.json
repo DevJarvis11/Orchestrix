@@ -1,0 +1,27 @@
+{
+	"name": "@orchestrix/web",
+	"private": true,
+	"version": "0.0.0",
+	"type": "module",
+	"scripts": {
+		"dev": "vite",
+		"build": "tsc -b && vite build",
+		"typecheck": "tsc -b",
+		"lint": "biome check .",
+		"format": "biome format --write .",
+		"preview": "vite preview"
+	},
+	"dependencies": {
+		"react": "^19.3.1",
+		"react-dom": "^19.3.1"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.6.2",
+		"@types/node": "^24.19.2",
+		"@types/react": "^19.3.0",
+		"@types/react-dom": "^19.3.0",
+		"@vitejs/plugin-react": "^6.1.2",
+		"typescript": "~6.0.3",
+		"vite": "^8.3.4"
+	}
+}

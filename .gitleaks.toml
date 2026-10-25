@@ -1,0 +1,18 @@
+# gitleaks config: default rules plus the Yotta gateway key format (amendment A1).
+[extend]
+useDefault = true
+
+[[rules]]
+id = "yotta-litellm-key"
+description = "Yotta LiteLLM gateway key"
+regex = '''sk-yotta-[0-9a-f]{32,}'''
+keywords = ["sk-yotta-"]
+
+[allowlist]
+description = "Local, never-committed files and dependency trees"
+paths = [
+  '''(^|/)\.env$''',
+  '''(^|/)\.venv/''',
+  '''(^|/)node_modules/''',
+  '''(^|/)apps/web/dist/''',
+]

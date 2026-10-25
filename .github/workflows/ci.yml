@@ -1,0 +1,35 @@
+# Mirrors `make ci` (plan improvement 9). Runs on every push to DevJarvis11/Orchestrix.
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # gitleaks scans history
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.12.0"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "12.15.0"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: pnpm
+      - name: Install
+        run: |
+          uv sync --all-packages --frozen
+          pnpm install --frozen-lockfile
+      - name: make ci
+        run: |
+          make env  # throwaway .env with random secrets; the compose build needs one
+          make ci

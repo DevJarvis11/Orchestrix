@@ -1,0 +1,25 @@
+# Install with `pre-commit install`. Versions are pinned to the project's resolved tools.
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check --fix
+        language: system
+        types_or: [python, pyi]
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format
+        language: system
+        types_or: [python, pyi]
+      - id: biome
+        name: biome check
+        entry: pnpm --filter @orchestrix/web exec biome check --write --no-errors-on-unmatched
+        language: system
+        files: ^apps/web/
+        pass_filenames: false
+      - id: gitleaks
+        name: gitleaks (staged)
+        entry: docker run --rm -v "${PWD}:/repo" -w /repo zricethezav/gitleaks:v8.30.1 git --pre-commit --staged --redact --config /repo/.gitleaks.toml /repo
+        language: system
+        pass_filenames: false

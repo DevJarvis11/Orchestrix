@@ -21,11 +21,12 @@ Where the approved plan's "Improvements over the spec" conflict with SPEC.md, th
 ## Local environment rules
 
 - **Everything runs inside WSL Ubuntu 22.04.** Repo at `~/maop`. Never install or run project tooling on the Windows side.
-- **Git is local only.** No remote, no push. One commit per milestone (more if useful), ending with the `Co-Authored-By` trailer from the session's attribution reminder.
+- **Git:** commits are pushed to the private GitHub repo `DevJarvis11/Orchestrix` (`origin`, branch `main`). One commit per milestone (more if useful), each ending with the `Co-Authored-By` trailer from the session's attribution reminder. Commit and push after `make ci` and the milestone's Done-when checks pass. Never force-push. `.env` is never committed.
+- **Yotta GPU server is consume-only:** use its API; never restart, SSH into or reconfigure it.
 - **Do not touch the user's Kong containers** (`kong-gateway`, `kong-database`). They hold host ports 5432, 8000, 8001, 8443 and 8444.
-- **Host port map:** Postgres 55432, Redis 56379, S3 59000/59001, OPA 58181, LiteLLM 54000, API 8100, web 5173, SearXNG 58888, Keycloak 8180, Langfuse 3100, Grafana 3101, Prometheus 59090. MCP servers stay internal (optional debug ports 59101–59105).
+- **Host port map:** Postgres 55432, Redis 56379, S3 59000/59001, OPA 58181, LiteLLM 54000, API 58100, web 5173, SearXNG 58888, Keycloak 8180, Langfuse 3100, Grafana 3101, Prometheus 59090. MCP servers stay internal (optional debug ports 59101–59105).
 - **RAM is tight:** a 16 GB host with WSL capped at 11 GB. Every Compose service gets a memory limit. Run the `observability` and `auth` profiles only when needed. One worker in dev.
-- **Models:** host-native Ollama (`qwen3:8b`, `mxbai-embed-large`) on an RTX 4060 with 8 GB. Fully local profile with no cloud keys. `mxbai-embed-large` has a 512-token input limit.
+- **Models (plan amendments A1–A5):** chat runs on Yotta `gpt-oss-120b` over VPN, through our LiteLLM proxy, with host-native Ollama `qwen3:8b` as the automatic fallback. Memory embeddings use Yotta `qwen3-embed` (2560-d, `halfvec`) and rerank uses Yotta `qwen3-rerank` (local fastembed fallback). The Yotta key is only in `.env`. Containers reach the WSL Ollama by the WSL IP (the Makefile derives it); `host.docker.internal` is a different, empty Windows Ollama.
 - **Toolchain:**
   - Python 3.13 via uv; never use the system python3 (3.10).
   - Node 26 in `~/.local/bin`, with pnpm installed standalone (no corepack).
@@ -36,4 +37,10 @@ Where the approved plan's "Improvements over the spec" conflict with SPEC.md, th
 
 ## Quick commands
 
-Filled in during M1. See the Makefile: `make dev`, `make migrate`, `make test`, `make ci`, `make gateway-check`.
+See the Makefile (`make help`):
+- `make dev`: start the core profile and wait until healthy.
+- `make migrate`: Alembic upgrade plus checkpointer setup.
+- `make test`: unit and graph tests.
+- `make test-integration`: integration tests (testcontainers).
+- `make gateway-check`: probe every model through the proxy (`ARGS=--local-only` skips Yotta).
+- `make ci`: everything `ci.yml` runs.

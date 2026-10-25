@@ -1,0 +1,13 @@
+[project]
+name = "orchestrix-memory"
+version = "0.1.0"
+description = "Long-term memory: write, retrieve, rerank, consolidate"
+authors = [
+    { name = "ankith", email = "ankithm111@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = []
+
+[build-system]
+requires = ["uv_build>=0.12.0,<0.13.0"]
+build-backend = "uv_build"

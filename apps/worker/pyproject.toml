@@ -1,0 +1,21 @@
+[project]
+name = "orchestrix-worker"
+version = "0.1.0"
+description = "Taskiq workers running graph steps under run leases, plus the scheduler"
+authors = [
+    { name = "ankith", email = "ankithm111@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "orchestrix-core",
+    "redis>=8.1.0",
+    "taskiq>=0.13.0",
+    "taskiq-redis>=1.2.4",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.0,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.uv.sources]
+orchestrix-core = { workspace = true }

@@ -1,0 +1,219 @@
+# Orchestrix local stack (SPEC 21.2). Run through the Makefile, which passes --env-file .env.
+# Host ports follow the Kong-safe map in CLAUDE.md and bind to 127.0.0.1 only.
+# Every service has a memory limit: WSL is capped at 11 GB (plan improvement 10).
+
+name: orchestrix
+
+x-app-env: &app-env
+  ORCHESTRIX_ENV: development
+  ORCHESTRIX_AUTH_MODE: dev
+  ORCHESTRIX_DATABASE_URL: postgresql+psycopg://orchestrix_app:${ORCHESTRIX_APP_PASSWORD}@postgres:5432/orchestrix
+  ORCHESTRIX_REDIS_URL: redis://redis:6379/0
+  ORCHESTRIX_S3_ENDPOINT: http://s3:9000
+  ORCHESTRIX_S3_ACCESS_KEY: ${S3_ROOT_USER}
+  ORCHESTRIX_S3_SECRET_KEY: ${S3_ROOT_PASSWORD}
+  ORCHESTRIX_LITELLM_URL: http://litellm:4000
+  ORCHESTRIX_LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+  ORCHESTRIX_OPA_URL: http://opa:8181
+  ORCHESTRIX_MCP_SERVICE_TOKEN: ${ORCHESTRIX_MCP_SERVICE_TOKEN}
+
+x-api-build: &api-build
+  context: ../..
+  dockerfile: infra/docker/python.Dockerfile
+  args:
+    PACKAGE: orchestrix-api
+
+x-worker-build: &worker-build
+  context: ../..
+  dockerfile: infra/docker/python.Dockerfile
+  args:
+    PACKAGE: orchestrix-worker
+
+x-app-depends: &app-depends
+  migrate:
+    condition: service_completed_successfully
+  redis:
+    condition: service_healthy
+
+services:
+  postgres:
+    profiles: [core]
+    image: pgvector/pgvector:0.8.7-pg18-trixie
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      ORCHESTRIX_APP_PASSWORD: ${ORCHESTRIX_APP_PASSWORD}
+      ORCHESTRIX_MIGRATOR_PASSWORD: ${ORCHESTRIX_MIGRATOR_PASSWORD}
+      ORCHESTRIX_READONLY_PASSWORD: ${ORCHESTRIX_READONLY_PASSWORD}
+      LITELLM_DB_PASSWORD: ${LITELLM_DB_PASSWORD}
+    command: ["postgres", "-c", "shared_buffers=256MB", "-c", "max_connections=200"]
+    volumes:
+      # PostgreSQL 18 images keep data under /var/lib/postgresql/<major>/; mount the parent.
+      - pg-data:/var/lib/postgresql
+      - ./postgres/initdb:/docker-entrypoint-initdb.d:ro
+    ports: ["127.0.0.1:55432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d orchestrix"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    mem_limit: 1g
+    restart: unless-stopped
+
+  redis:
+    profiles: [core]
+    image: redis:8.10.2
+    command: ["redis-server", "--maxmemory", "200mb", "--maxmemory-policy", "noeviction", "--appendonly", "yes"]
+    volumes: [redis-data:/data]
+    ports: ["127.0.0.1:56379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    mem_limit: 256m
+    restart: unless-stopped
+
+  s3:
+    profiles: [core]
+    # The store Langfuse's upstream compose ships, pinned by digest (Chainguard publishes only :latest).
+    image: cgr.dev/chainguard/minio@sha256:d88920d6a50bd0b088223b688be3b76c63e6205dbe494437f67ba1240ea12880
+    entrypoint: sh
+    # Buckets are directories: create them before the server starts, as upstream does.
+    command: -c 'mkdir -p /data/orchestrix /data/langfuse && minio server --address ":9000" --console-address ":9001" /data'
+    environment:
+      MINIO_ROOT_USER: ${S3_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${S3_ROOT_PASSWORD}
+    volumes: [s3-data:/data]
+    ports: ["127.0.0.1:59000:9000", "127.0.0.1:59001:9001"]
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    mem_limit: 384m
+    restart: unless-stopped
+
+  opa:
+    profiles: [core]
+    image: openpolicyagent/opa:1.21.3
+    command: ["run", "--server", "--addr=0.0.0.0:8181", "--log-level=info", "/policies"]
+    volumes: [../../policies:/policies:ro]
+    ports: ["127.0.0.1:58181:8181"]
+    healthcheck:
+      # Distroless image: OPA probes its own /health with http.send. The lookup is undefined
+      # (so --fail exits 1) unless the status is 200.
+      test:
+        - CMD
+        - opa
+        - eval
+        - --fail
+        - '{200: true}[http.send({"method": "get", "url": "http://127.0.0.1:8181/health", "timeout": "2s"}).status_code]'
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    mem_limit: 128m
+    restart: unless-stopped
+
+  litellm:
+    profiles: [core]
+    image: ghcr.io/berriai/litellm-database:v1.106.2
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    environment:
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+      LITELLM_DATABASE_URL: postgresql://litellm:${LITELLM_DB_PASSWORD}@postgres:5432/litellm
+      DATABASE_URL: postgresql://litellm:${LITELLM_DB_PASSWORD}@postgres:5432/litellm
+      STORE_MODEL_IN_DB: "False"
+      REMOTE_LLM_BASE_URL: ${REMOTE_LLM_BASE_URL}
+      REMOTE_LLM_API_KEY: ${REMOTE_LLM_API_KEY}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL}
+    volumes: [../litellm/config.yaml:/app/config.yaml:ro]
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    ports: ["127.0.0.1:54000:4000"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:4000/health/liveliness', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    mem_limit: 1g
+    restart: unless-stopped
+
+  migrate:
+    profiles: [core]
+    build: *api-build
+    image: orchestrix-api:dev
+    command: ["python", "-m", "orchestrix_core.db.migrate"]
+    environment:
+      <<: *app-env
+      ORCHESTRIX_MIGRATOR_DATABASE_URL: postgresql+psycopg://orchestrix_migrator:${ORCHESTRIX_MIGRATOR_PASSWORD}@postgres:5432/orchestrix
+    depends_on:
+      postgres:
+        condition: service_healthy
+    mem_limit: 512m
+    restart: "no"
+
+  api:
+    profiles: [core]
+    build: *api-build
+    image: orchestrix-api:dev
+    command: ["uvicorn", "--factory", "orchestrix_api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment: *app-env
+    ports: ["127.0.0.1:${API_HOST_PORT:-58100}:8000"]
+    depends_on: *app-depends
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    mem_limit: 512m
+    restart: unless-stopped
+
+  worker:
+    profiles: [core]
+    build: *worker-build
+    image: orchestrix-worker:dev
+    command: ["taskiq", "worker", "orchestrix_worker.broker:broker", "--workers", "1"]
+    environment: *app-env
+    depends_on: *app-depends
+    healthcheck:
+      test: ["CMD", "python", "-m", "orchestrix_worker.healthcheck"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    mem_limit: 1g
+    restart: unless-stopped
+
+  scheduler:
+    profiles: [core]
+    build: *worker-build
+    image: orchestrix-worker:dev
+    command: ["taskiq", "scheduler", "orchestrix_worker.scheduler:scheduler"]
+    environment: *app-env
+    depends_on: *app-depends
+    healthcheck:
+      test: ["CMD", "python", "-m", "orchestrix_worker.healthcheck"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    mem_limit: 384m
+    restart: unless-stopped
+
+networks:
+  default:
+    # Fixed subnet: an auto-assigned 172.18.0.0/16 would swallow the Yotta VPN host 172.18.220.50
+    # inside Docker Desktop (VPN route is 172.18.220.0/23).
+    ipam:
+      config:
+        - subnet: 172.29.0.0/16
+
+volumes:
+  pg-data:
+  redis-data:
+  s3-data:

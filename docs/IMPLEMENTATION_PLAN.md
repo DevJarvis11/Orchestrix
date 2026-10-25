@@ -31,7 +31,7 @@ User decisions:
 
 ## Host port map (Kong-safe)
 
-Postgres `55432`, Redis `56379`, S3 `59000/59001`, OPA `58181`, LiteLLM `54000`, API `8100`, web (Vite) `5173`, SearXNG `58888`, Keycloak `8180`, Langfuse `3100`, Grafana `3101`, Prometheus `59090`. MCP servers are reachable only on the internal network; debug ports `59101–59105` are opt-in.
+Postgres `55432`, Redis `56379`, S3 `59000/59001`, OPA `58181`, LiteLLM `54000`, API `58100`, web (Vite) `5173`, SearXNG `58888`, Keycloak `8180`, Langfuse `3100`, Grafana `3101`, Prometheus `59090`. MCP servers are reachable only on the internal network; debug ports `59101–59105` are opt-in.
 
 ## Improvements over the spec (each with a reason; recorded in docs/BUILD_LOG.md)
 
@@ -227,3 +227,35 @@ Helm chart, kind, NetworkPolicies, the gVisor RuntimeClass, Argo CD, `release.ym
   - Run the SIGKILL resilience test and a full-stack restart mid-pause.
   - Pass `make eval-smoke` and Playwright 5.1–5.5.
   - Run `make demo` offline.
+
+## Amendments (approved by the user on 2026-10-22)
+
+The user moved chat models to VPN-hosted servers and asked for model-agnostic, UI-switchable models. These amend the plan above and take precedence over SPEC.md where they conflict.
+
+- **A1. Model catalogue and fallback.** `infra/litellm/config.yaml` lists concrete models instead of one alias per role:
+  - `gpt-oss-120b`: the primary. It runs on the Yotta vLLM cluster and is reached over VPN through the Yotta LiteLLM gateway (`litellm_proxy/` provider; `REMOTE_LLM_BASE_URL` and `REMOTE_LLM_API_KEY` in `.env` only).
+  - `qwen3-8b-local`: host Ollama, `num_ctx` 16384, thinking off.
+  - `embed`: `mxbai-embed-large`.
+  - `fallback-probe`: never reachable; `make gateway-check` uses it to prove the fallback path.
+
+  The router falls back from `gpt-oss-120b` to `qwen3-8b-local`, and its cooldowns stop a dropped VPN from costing a timeout on every call.
+- **A2. Roles resolved app-side.** Agents still ask for a role (`planner`, `specialist`, `reviewer`, `fast`).
+  - `LLMFactory` resolves each role to a gateway model in this order: task override, then admin default, then settings default.
+  - Each model family gets its own parameters: gpt-oss `reasoning_effort` (planner and reviewer `medium`, specialist and fast `low`), with reviewer temperature 0.
+  - The model that actually served a call comes from the LiteLLM response headers (`x-litellm-model-group`, `x-litellm-attempted-fallbacks`) and is stored in `llm_calls.model_id`.
+  - Prompts must fit qwen3's 16K context, so a fallback never overflows.
+- **A3. Schema additions (in migration 0001):**
+  - a `model_defaults` table (role, model, params, updated_by, updated_at; changes are audit-logged)
+  - `tasks.model_overrides jsonb`
+  - `runs.model_config jsonb` (the resolved snapshot, pinned on replay)
+- **A4. API and UI.**
+  - API: `GET /v1/models` and task `model_overrides` (M2); `GET`/`PUT /v1/admin/model-defaults` (M4).
+  - UI (M7): per-role model pickers on the task form, an Admin → Models page, a "fell back to qwen3-8b" badge, and costs broken down by model.
+  - Evals (M8): side-by-side comparison per model configuration.
+- **A5. Embeddings and rerank (revised 2026-10-22 at the user's request: "use Yotta models, they are more powerful").**
+  - Memory embeddings use Yotta `qwen3-embed`, 2560-d, stored as `halfvec(2560)` with an HNSW `halfvec_cosine_ops` index. pgvector's HNSW caps `vector` at 2000 dims; `halfvec` allows 4000. Input is no longer limited to mxbai's 512 tokens.
+  - There is no local embedding fallback, because vectors from different models can't share an index. `memories.embedding` is therefore nullable:
+    - Writes made while the VPN is down are stored and backfilled by a scheduler job.
+    - Retrieval runs the vector arm on embedded rows only, with full-text search always on, so it degrades to keyword search.
+  - Rerank uses Yotta `qwen3-rerank` (the `rerank` alias in our proxy) as primary, with local fastembed ONNX as the fallback (M6).
+  - Yotta is consume-only: never restart, SSH into or reconfigure it.
