@@ -16,6 +16,13 @@ x-app-env: &app-env
   ORCHESTRIX_LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
   ORCHESTRIX_OPA_URL: http://opa:8181
   ORCHESTRIX_MCP_SERVICE_TOKEN: ${ORCHESTRIX_MCP_SERVICE_TOKEN}
+  ORCHESTRIX_DEV_JWT_SECRET: ${ORCHESTRIX_DEV_JWT_SECRET}
+  ORCHESTRIX_GRAPH_VERSION: ${ORCHESTRIX_GRAPH_VERSION:-dev}
+  # Dev/test switches: deterministic fake models and short leases for the resilience test.
+  ORCHESTRIX_FAKE_MODELS: ${ORCHESTRIX_FAKE_MODELS:-false}
+  ORCHESTRIX_FAKE_MODEL_DELAY_SECONDS: ${ORCHESTRIX_FAKE_MODEL_DELAY_SECONDS:-0}
+  ORCHESTRIX_LEASE_SECONDS: ${ORCHESTRIX_LEASE_SECONDS:-60}
+  ORCHESTRIX_HEARTBEAT_SECONDS: ${ORCHESTRIX_HEARTBEAT_SECONDS:-15}
 
 x-api-build: &api-build
   context: ../..
@@ -176,8 +183,17 @@ services:
   worker:
     profiles: [core]
     build: *worker-build
+    stop_grace_period: 45s  # drain the current step (NFR-04)
     image: orchestrix-worker:dev
-    command: ["taskiq", "worker", "orchestrix_worker.broker:broker", "--workers", "1"]
+    # Import jobs and scheduled tasks so this worker can execute them.
+    command:
+      - taskiq
+      - worker
+      - orchestrix_worker.broker:broker
+      - orchestrix_worker.jobs
+      - orchestrix_worker.scheduler
+      - --workers
+      - "1"
     environment: *app-env
     depends_on: *app-depends
     healthcheck:

@@ -7,6 +7,7 @@ authors = [
 ]
 requires-python = ">=3.13"
 dependencies = [
+    "orchestrix-agents",
     "orchestrix-core",
     "redis>=8.1.0",
     "taskiq>=0.13.0",
@@ -19,3 +20,4 @@ build-backend = "uv_build"
 
 [tool.uv.sources]
 orchestrix-core = { workspace = true }
+orchestrix-agents = { workspace = true }

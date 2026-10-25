@@ -17,6 +17,7 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         if key.startswith(("ORCHESTRIX_", "OLLAMA_", "LANGFUSE_", "TAVILY_")):
             monkeypatch.delenv(key)
     monkeypatch.setenv("ORCHESTRIX_DATABASE_URL", DSN)
+    monkeypatch.setenv("ORCHESTRIX_DEV_JWT_SECRET", "x" * 32)
 
 
 def load() -> Settings:
@@ -130,3 +131,17 @@ def test_default_models_reject_unknown_role(monkeypatch: pytest.MonkeyPatch) -> 
 def test_notional_prices_cover_catalogue_models() -> None:
     prices = load().model_prices
     assert {"gpt-oss-120b", "qwen3-8b-local", "embed", "rerank"} <= prices.keys()
+
+
+def test_fake_models_refused_in_production(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ORCHESTRIX_ENV", "production")
+    monkeypatch.setenv("ORCHESTRIX_FAKE_MODELS", "true")
+    with pytest.raises(ValidationError, match="FAKE_MODELS"):
+        load()
+
+
+def test_dev_auth_needs_a_strong_secret(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ORCHESTRIX_AUTH_MODE", "dev")
+    monkeypatch.setenv("ORCHESTRIX_DEV_JWT_SECRET", "short")
+    with pytest.raises(ValidationError, match="DEV_JWT_SECRET"):
+        load()

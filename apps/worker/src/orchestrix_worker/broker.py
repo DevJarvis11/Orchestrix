@@ -1,7 +1,5 @@
-"""Taskiq broker on Redis Streams (SPEC 7.1). Acknowledged delivery; leases live in Postgres."""
+"""The worker's Taskiq broker: the shared one from orchestrix_core.queue (Redis Streams)."""
 
-from taskiq_redis import RedisStreamBroker
+from orchestrix_core.queue import get_broker
 
-from orchestrix_core.config import get_settings
-
-broker = RedisStreamBroker(url=get_settings().redis_url, queue_name="orchestrix")
+broker = get_broker()

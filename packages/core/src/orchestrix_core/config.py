@@ -97,6 +97,13 @@ class Settings(BaseSettings):
     lease_seconds: int = Field(default=60, ge=5)
     heartbeat_seconds: int = Field(default=15, ge=1)
 
+    graph_version: str = "dev"  # git sha of packages/agents, stamped on every run (SPEC 10)
+
+    # Dev/test only: locally signed JWTs (auth_mode=dev) and deterministic fake models.
+    dev_jwt_secret: SecretStr = SecretStr("")
+    fake_models: bool = False
+    fake_model_delay_seconds: float = Field(default=0, ge=0)
+
     @field_validator("default_models", mode="after")
     @classmethod
     def _merge_default_models(cls, value: dict[Role, str]) -> dict[Role, str]:
@@ -108,6 +115,12 @@ class Settings(BaseSettings):
         if self.auth_mode == "dev" and self.env != "development":
             raise ValueError(
                 "ORCHESTRIX_AUTH_MODE=dev is only allowed when ORCHESTRIX_ENV=development"
+            )
+        if self.fake_models and self.env == "production":
+            raise ValueError("ORCHESTRIX_FAKE_MODELS is only allowed in development and test")
+        if self.auth_mode == "dev" and len(self.dev_jwt_secret.get_secret_value()) < 32:
+            raise ValueError(
+                "ORCHESTRIX_DEV_JWT_SECRET must be at least 32 characters in dev auth mode"
             )
         if self.heartbeat_seconds >= self.lease_seconds:
             raise ValueError("heartbeat_seconds must be shorter than lease_seconds")

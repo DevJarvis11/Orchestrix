@@ -7,8 +7,8 @@ The running record of milestone status, resolved versions, decisions and deviati
 | Milestone | Status | Commit | Notes |
 |---|---|---|---|
 | M0 Bootstrap | Done | c7bc0aa | 2026-10-22: tool images pulled. Ollama is reached at the WSL IP (the Makefile derives it). The VPN subnet clash is fixed (the Kong network moved to 172.30.0.0/16). |
-| M1 Foundation | Verified, awaiting user review (not committed) | — | 2026-10-22: `make dev` is all healthy; `make migrate` creates 21 app tables plus 4 checkpoint tables; `make gateway-check` passes 9/9 (gpt-oss-120b, qwen3-8b-local, qwen3-embed 2560-d, qwen3-rerank, fallback); `make ci` passes (42 unit and 10 integration tests). |
-| M2 Graph core | Not started | — | |
+| M1 Foundation | Done | a906f0a | 2026-10-25: pushed to GitHub (rebased onto the repo's initial MIT LICENSE commit). |
+| M2 Graph core | Done | (this commit) | 2026-10-25: 25 graph route tests (0.8 s), the create_agent interrupt spike, 24 integration tests, the fake-model API stream e2e, and the SIGKILL resilience test (NFR-01) all pass. |
 | M3 MCP and specialists | Not started | — | |
 | M4 HITL and policy | Not started | — | |
 | M5 Observability and cost | Not started | — | |
@@ -18,8 +18,7 @@ The running record of milestone status, resolved versions, decisions and deviati
 
 ## Next action
 
-1. Commit M1, then the user's first `git push -u origin main` (enters the PAT once; it's saved in the repo-local credential store).
-2. Start M2 (see the session plan): schemas, state machine, graph and subgraph on `ScriptedChatModel`, worker leases, the outbox, the tasks/SSE API, and the resilience test.
+Start M3 (MCP tools and real specialists): SPEC 12, 15.2, 15.3, 16, plus amendment A1/A2 model routing. Replace `StubSpecialistRunner` with `create_agent` specialists. The spike `tests/graph/test_spike_agent_interrupt.py` already proves the interrupt/resume pattern they rely on.
 
 ## Environment facts (from the 2026-10-21 prerequisite check)
 
@@ -51,6 +50,8 @@ Resolved 2026-10-22. `uv.lock` and `pnpm-lock.yaml` are authoritative.
 | structlog / httpx / tenacity | 26.1.0 / 0.28.1 / 9.2.1 | |
 | ruff / pyright / pytest / pytest-asyncio | 0.17.1 / 1.1.414 / 9.1.1 / 1.4.0 | |
 | testcontainers / respx | 4.15.0 / 0.23.1 | |
+| langgraph / langchain / langchain-openai | 1.2.17 / 1.4.7 / 1.7.2 | M2 |
+| jinja2 / pyjwt / aioboto3 / asgi-lifespan | 3.1.6 / 2.15.1 / 15.5.0 / 2.1.0 | M2 (aioboto3 pins wrapt 1.17.3) |
 | Postgres image | `pgvector/pgvector:0.8.7-pg18-trixie` | |
 | Yotta models (consumed, not managed) | `gpt-oss-120b`, `qwen3-embed` (2560-d), `qwen3-rerank` | Reached through our proxy with the `litellm_proxy/` provider at `http://172.18.220.50:4000` (no `/v1`) |
 | Redis image | `redis:8.10.2` | |
@@ -107,6 +108,31 @@ Resolved 2026-10-22. `uv.lock` and `pnpm-lock.yaml` are authoritative.
   - Auth is a fine-grained PAT kept in a repo-local credential store, `~/.config/git/orchestrix-credentials` (mode 600). The global git-credential-manager holds a GPG-locked token for another account (`Ankith-M-QG`), which non-interactive pushes can't use.
   - `ci.yml` runs on every push and calls `make env` before `make ci`. `eval.yml` (M8) is manual-dispatch only, because GitHub runners can't reach Yotta.
 - 2026-10-25: **Cadence.** After each milestone passes `make ci` and its Done-when checks, Claude commits, pushes, reports and continues (the user's choice). The user reviews commit by commit.
+
+- 2026-10-25: **M2 graph decisions.**
+  - **RunState gains `budget` and `stop_reason`.** The effective caps must survive a resume after a human raises them at `budget_100`; `RunContext` is immutable and not checkpointed. `stop_reason` routes cancel, budget and reject straight to `finalize`.
+  - **Graph wiring extends SPEC 11.4 minimally:**
+    - `plan_gate` routes back to itself while an edited plan is still invalid, and to `finalize` when rejected.
+    - `dispatch` routes to `finalize` on a stop.
+    - `final_review` routes to `finalize` when a human rejects.
+  - **Review thresholds.** A reviewer "approve" below `review_score_threshold` (6) counts as a revision request (FR-40). After a final-review escalation, a human "approve" or "take_over" delivers without another automated review.
+  - **FR-11 allow-list check.** The `Plan` schema has no tool field, so the check applies to `attachment:` input references, which need `files.read_artifact`. `sN.output` inputs must also appear in `depends_on`.
+  - **Budget escalation at `dispatch`.** `budget_100` raises an `approve_action` interrupt: `approve_with_edits` raises the caps, `reject` stops with `budget_exceeded`. The full 14.1 trigger set (BudgetMiddleware, `notify`) is M4.
+  - **§14.2 schemas.** `EscalationPayload` and `EscalationDecision` are implemented exactly as specified and are already used by every M2 interrupt. The worker applies posted decisions (`escalation_actions`) on resume. The decision API itself is M4.
+  - **Specialist stub.** M2 specialists are a one-call stub (`StubSpecialistRunner`). LLM-call and cost rows (`llm_calls`) come in M5.
+- 2026-10-25: **Migration 0002** adds `runs.reclaim_count` for the crash-loop guard (SPEC 8.2 step 5 needs a counter that the schema lacked).
+- 2026-10-25: **Fake-model mode.** `ORCHESTRIX_FAKE_MODELS` (refused in production) runs deterministic models in the worker. Its specialist writes one idempotent `tool_calls` row per subtask, keyed by `hash(run_id, checkpoint_ns, …)` (improvement 3). `make test-resilience` uses it with 2 workers and 10 s leases to prove NFR-01.
+- 2026-10-25: **Queue.** The Taskiq broker lives in `orchestrix_core.queue`, so the API enqueues `start_run` by task name without importing worker code. The worker command imports `orchestrix_worker.jobs` and `orchestrix_worker.scheduler`. The scheduler runs the reaper every 30 s, the outbox relay every 10 s, and the idempotency-key expiry hourly.
+- 2026-10-25: **SSE.** Uses FastAPI 0.159's built-in `fastapi.sse`, whose idle keepalive sends `: ping` every 15 s (exactly SPEC 17.2). The stream closes after `run.completed`, `run.failed` or `run.cancelled`.
+- 2026-10-25: **Dev auth.**
+  - Tokens are HS256 JWTs shaped like Keycloak's (`realm_access.roles`), signed with `ORCHESTRIX_DEV_JWT_SECRET` (at least 32 chars, generated into `.env`).
+  - Users are provisioned just-in-time; the team comes from `team_members`.
+  - Task read access is owner or team member; full RBAC is M7.
+  - `make dev-token` provisions a demo user and team.
+- 2026-10-25: **Tooling.**
+  - `langgraph` is a namespace package, so pyright ignores its `py.typed` for `langgraph.graph`. `graph.py` and `subgraph.py` carry file-level relaxations for three reportUnknown/MissingTypeStubs rules.
+  - The root dev group depends on every workspace member, so `uv run` never un-installs them.
+- 2026-10-25: **Admin model defaults.** The `model_defaults` table is not read yet: role resolution uses task override, then settings default. The admin defaults API arrives in M4 (A4).
 
 ## Open items for the user
 

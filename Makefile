@@ -14,7 +14,7 @@ GITLEAKS_IMAGE := zricethezav/gitleaks:v8.30.1
 TRIVY_IMAGE := aquasec/trivy:0.76.1
 
 .PHONY: help env dev dev-full down logs ps migrate seed test test-integration lint format \
-	typecheck gateway-check opa-test gitleaks docker-build web-check ci
+	typecheck gateway-check opa-test gitleaks docker-build web-check ci dev-token test-resilience
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-18s %s\n", $$1, $$2}'
@@ -43,8 +43,18 @@ migrate: env ## Alembic upgrade head + checkpointer setup (one-shot container)
 seed: ## Seed demo users, memories and data (filled in M8)
 	@echo "seed: nothing to seed until M8"
 
+dev-token: ## Provision a demo user and team; print a dev JWT (EMAIL=, TEAM=)
+	@uv run python -m orchestrix_api.security.dev_jwt --email $${EMAIL:-demo@orchestrix.local} --team $${TEAM:-demo}
+
+test-resilience: env ## NFR-01: SIGKILL the worker holding a run; another worker finishes it
+	ORCHESTRIX_FAKE_MODELS=true ORCHESTRIX_FAKE_MODEL_DELAY_SECONDS=6 \
+	ORCHESTRIX_LEASE_SECONDS=10 ORCHESTRIX_HEARTBEAT_SECONDS=3 \
+	$(COMPOSE) --profile core up -d --build --wait --scale worker=2
+	uv run pytest -m resilience tests/e2e -v || (status=$$?; $(MAKE) --no-print-directory dev; exit $$status)
+	$(MAKE) --no-print-directory dev  # back to normal settings and one worker
+
 test: ## Unit and graph tests (no Docker)
-	uv run pytest -m "not integration"
+	uv run pytest -m "not integration and not resilience"
 
 test-integration: ## Integration tests (testcontainers; needs Docker)
 	uv run pytest -m integration

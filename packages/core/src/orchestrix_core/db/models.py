@@ -139,6 +139,9 @@ class Run(Base):
     status: Mapped[str] = mapped_column(Text, nullable=False)
     lease_owner: Mapped[str | None] = mapped_column(Text)
     lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reclaim_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=sa_text("0")
+    )  # crash-loop guard: reclaimed by the reaper this many times (SPEC 8.2 step 5)
     graph_version: Mapped[str] = mapped_column(Text, nullable=False)
     model_config_: Mapped[dict[str, Any] | None] = mapped_column(
         "model_config", JSONB
