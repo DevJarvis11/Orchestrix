@@ -259,3 +259,8 @@ The user moved chat models to VPN-hosted servers and asked for model-agnostic, U
     - Retrieval runs the vector arm on embedded rows only, with full-text search always on, so it degrades to keyword search.
   - Rerank uses Yotta `qwen3-rerank` (the `rerank` alias in our proxy) as primary, with local fastembed ONNX as the fallback (M6).
   - Yotta is consume-only: never restart, SSH into or reconfigure it.
+- **A6. Per-run efficiency breakdown (approved 2026-11-01).** The goal is to see where each run's tokens went, not to optimise them automatically.
+  - **M5:** every `llm_calls` row also records `subtask_key`, `attempt`, `revision`, `requested_model` (vs `model_id`, the model that actually served) and `purpose` (`plan`, `plan_repair`, `execute`, `revision`, `retry`, `review`, `synthesis`, `final_review`, `memory`).
+  - **M5:** `GET /v1/runs/{id}/efficiency` returns tokens and cost per subtask and per purpose, and how much went on revisions, retries and model fallbacks.
+  - **M7:** the run view shows this breakdown.
+  - **Out of scope:** automatic optimisation (prompt compression, response caching, automatic model downgrades), until M8 evals show where the waste actually is.

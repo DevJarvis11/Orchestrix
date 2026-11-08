@@ -1,4 +1,143 @@
+@import "tailwindcss";
+@import "@xyflow/react/dist/style.css";
+
+/* Light and dark themes via CSS variables (SPEC 18.2). `.dark` on <html> switches. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-	font-family: system-ui, sans-serif;
-	color-scheme: light dark;
+	--bg: oklch(0.985 0 0);
+	--surface: oklch(1 0 0);
+	--surface-2: oklch(0.965 0.003 260);
+	--fg: oklch(0.21 0.02 260);
+	--muted: oklch(0.48 0.02 260);
+	--border: oklch(0.9 0.006 260);
+	--accent: oklch(0.52 0.17 262);
+	--accent-fg: oklch(0.99 0 0);
+	--focus: oklch(0.6 0.2 262);
+	--danger: oklch(0.55 0.21 27);
+	/* Status palette (SPEC 18.2). Colour is never the only signal: icons + labels too. */
+	--st-pending: oklch(0.55 0.01 260);
+	--st-running: oklch(0.55 0.17 250);
+	--st-review: oklch(0.52 0.19 300);
+	--st-human: oklch(0.62 0.15 70);
+	--st-approved: oklch(0.55 0.15 150);
+	--st-failed: oklch(0.55 0.21 27);
+	--st-skipped: oklch(0.6 0.01 260);
+	color-scheme: light;
+}
+
+.dark {
+	--bg: oklch(0.17 0.01 260);
+	--surface: oklch(0.21 0.012 260);
+	--surface-2: oklch(0.25 0.014 260);
+	--fg: oklch(0.94 0.005 260);
+	--muted: oklch(0.7 0.015 260);
+	--border: oklch(0.32 0.015 260);
+	--accent: oklch(0.68 0.15 262);
+	--accent-fg: oklch(0.15 0.01 260);
+	--focus: oklch(0.75 0.15 262);
+	--danger: oklch(0.7 0.18 27);
+	--st-pending: oklch(0.72 0.01 260);
+	--st-running: oklch(0.72 0.14 250);
+	--st-review: oklch(0.72 0.15 300);
+	--st-human: oklch(0.8 0.14 75);
+	--st-approved: oklch(0.74 0.14 150);
+	--st-failed: oklch(0.7 0.18 27);
+	--st-skipped: oklch(0.7 0.01 260);
+	color-scheme: dark;
+}
+
+@theme inline {
+	--color-bg: var(--bg);
+	--color-surface: var(--surface);
+	--color-surface-2: var(--surface-2);
+	--color-fg: var(--fg);
+	--color-muted: var(--muted);
+	--color-border: var(--border);
+	--color-accent: var(--accent);
+	--color-accent-fg: var(--accent-fg);
+	--color-danger: var(--danger);
+	--color-st-pending: var(--st-pending);
+	--color-st-running: var(--st-running);
+	--color-st-review: var(--st-review);
+	--color-st-human: var(--st-human);
+	--color-st-approved: var(--st-approved);
+	--color-st-failed: var(--st-failed);
+	--color-st-skipped: var(--st-skipped);
+	--font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+	--font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+html,
+body {
+	background: var(--bg);
+	color: var(--fg);
+	font-family: var(--font-sans);
+}
+
+/* Visible focus everywhere (NFR-11). */
+:focus-visible {
+	outline: 2px solid var(--focus);
+	outline-offset: 2px;
+	border-radius: 4px;
+}
+
+.react-flow__node:focus-visible {
+	outline: 2px solid var(--focus);
+}
+
+.prose-agent h1 {
+	font-size: 1.4rem;
+	font-weight: 700;
+	margin: 1rem 0 0.5rem;
+}
+.prose-agent h2 {
+	font-size: 1.2rem;
+	font-weight: 650;
+	margin: 1rem 0 0.4rem;
+}
+.prose-agent h3 {
+	font-size: 1.05rem;
+	font-weight: 600;
+	margin: 0.8rem 0 0.3rem;
+}
+.prose-agent p {
+	margin: 0.5rem 0;
+	line-height: 1.6;
+}
+.prose-agent ul {
+	list-style: disc;
+	padding-left: 1.4rem;
+	margin: 0.5rem 0;
+}
+.prose-agent ol {
+	list-style: decimal;
+	padding-left: 1.4rem;
+	margin: 0.5rem 0;
+}
+.prose-agent a {
+	color: var(--accent);
+	text-decoration: underline;
+}
+.prose-agent code {
+	font-family: var(--font-mono);
+	font-size: 0.85em;
+	background: var(--surface-2);
+	padding: 0 0.25rem;
+	border-radius: 4px;
+}
+.prose-agent pre {
+	background: var(--surface-2);
+	padding: 0.75rem;
+	border-radius: 6px;
+	overflow-x: auto;
+}
+.prose-agent table {
+	border-collapse: collapse;
+	margin: 0.75rem 0;
+}
+.prose-agent th,
+.prose-agent td {
+	border: 1px solid var(--border);
+	padding: 0.25rem 0.5rem;
 }

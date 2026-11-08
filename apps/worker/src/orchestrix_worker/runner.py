@@ -7,10 +7,13 @@ checkpoint, publish events, mirror pending interrupts into escalations, then rel
 import asyncio
 import os
 import socket
+import time
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import Any, Final, cast
 from uuid import UUID
 
+import httpx
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.types import Command
@@ -23,10 +26,11 @@ from orchestrix_agents.context import RunContext, Services
 from orchestrix_agents.graph import RunGraph, build_graph
 from orchestrix_agents.llm import GatewayChatProvider, resolve_models
 from orchestrix_agents.serde import make_serializer
-from orchestrix_agents.specialists.stub import StubSpecialistRunner
+from orchestrix_agents.specialists.agent import AgentSpecialistRunner
 from orchestrix_core.cancel import RedisCancelCheck
 from orchestrix_core.config import Settings, get_settings
 from orchestrix_core.db.models import Run, Task
+from orchestrix_core.db.repos.audit import AuditRepo
 from orchestrix_core.db.repos.escalations import EscalationRepo
 from orchestrix_core.db.repos.events import EventRepo
 from orchestrix_core.db.repos.runs import RunRepo
@@ -34,12 +38,32 @@ from orchestrix_core.db.repos.tasks import TaskRepo
 from orchestrix_core.db.session import create_engine, create_sessionmaker
 from orchestrix_core.events import EventBus
 from orchestrix_core.logging import get_logger, log_context
+from orchestrix_core.notify import Notifier
+from orchestrix_core.pii import default_redactor
 from orchestrix_core.schemas import Budget, TaskInput
-from orchestrix_core.schemas.events import EscalationEvent, RunLifecycleEvent
+from orchestrix_core.schemas.events import BudgetEvent, EscalationEvent, RunLifecycleEvent
 from orchestrix_core.state_machine import TERMINAL
 from orchestrix_core.storage import ObjectStore, S3ObjectStore
+from orchestrix_core.telemetry import flush as flush_traces
+from orchestrix_core.telemetry import langchain_handler, run_trace, span
+from orchestrix_memory.clients import GatewayEmbedder, GatewayReranker, LocalReranker
+from orchestrix_memory.repo import MemoryRepo
+from orchestrix_memory.service import MemoryService
+from orchestrix_policy.client import PolicyClient
+from orchestrix_policy.escalation_policy import EscalationPolicy, load_escalation_policy
+from orchestrix_tools.client import ToolBox
 from orchestrix_worker.fake_models import FakeChatProvider, FakeToolSpecialist
-from orchestrix_worker.services import SqlRunRecorder
+from orchestrix_worker.observability import NodeTimer, on_event, run_finished
+from orchestrix_worker.services import (
+    SqlArtifactBridge,
+    SqlLlmCallSink,
+    SqlPolicyGate,
+    SqlRunRecorder,
+    SqlToolCallStore,
+    admin_model_defaults,
+    enabled_tools,
+    sync_tool_registry,
+)
 
 log = get_logger(__name__)
 
@@ -59,6 +83,19 @@ class WorkerDeps:
     events: EventBus
     escalations: EscalationRepo
     recorder: SqlRunRecorder
+    tool_calls: SqlToolCallStore
+    toolbox: ToolBox
+    tools_ready: asyncio.Lock
+    http: httpx.AsyncClient
+    policy: SqlPolicyGate
+    audit: AuditRepo
+    notifier: Notifier
+    escalation_policy: EscalationPolicy
+    llm_calls: SqlLlmCallSink
+    memory: MemoryService
+    memory_repo: MemoryRepo
+    objects: ObjectStore
+    checkpointer: AsyncPostgresSaver
 
 
 _deps: WorkerDeps | None = None
@@ -86,6 +123,23 @@ async def build_deps(settings: Settings, store: ObjectStore | None = None) -> Wo
     await pool.open()
     checkpointer = AsyncPostgresSaver(pool, serde=make_serializer())  # pyright: ignore[reportArgumentType]
     tasks = TaskRepo(sessions)
+    objects = store or S3ObjectStore.from_settings(settings)
+    http = httpx.AsyncClient(timeout=10)
+    audit = AuditRepo(sessions)
+    webhook = settings.slack_webhook_url
+    key = settings.litellm_master_key.get_secret_value()
+    memory_repo = MemoryRepo(sessions)
+    memory = MemoryService(
+        memory_repo,
+        GatewayEmbedder.from_settings(http, settings),
+        GatewayReranker(
+            http,
+            settings.litellm_url,
+            key,
+            fallback=LocalReranker() if settings.local_fallback else None,
+        ),
+        default_redactor(),
+    )
     return WorkerDeps(
         settings=settings,
         sessions=sessions,
@@ -96,18 +150,75 @@ async def build_deps(settings: Settings, store: ObjectStore | None = None) -> Wo
         tasks=tasks,
         events=EventBus(EventRepo(sessions), redis),
         escalations=EscalationRepo(sessions),
-        recorder=SqlRunRecorder(sessions, tasks, store or S3ObjectStore(settings)),
+        recorder=SqlRunRecorder(sessions, tasks, objects),
+        tool_calls=SqlToolCallStore(sessions, objects),
+        toolbox=ToolBox(
+            settings.mcp_urls,
+            settings.mcp_service_token.get_secret_value(),
+            SqlArtifactBridge(sessions, objects),
+        ),
+        tools_ready=asyncio.Lock(),
+        http=http,
+        policy=SqlPolicyGate(
+            sessions, PolicyClient(settings.opa_url, http), audit, settings.org_email_domain
+        ),
+        audit=audit,
+        notifier=Notifier(
+            http, webhook.get_secret_value() if webhook else None, settings.public_web_url
+        ),
+        escalation_policy=load_escalation_policy(settings.escalation_policy_path),
+        llm_calls=SqlLlmCallSink(sessions),
+        memory=memory,
+        memory_repo=memory_repo,
+        objects=objects,
+        checkpointer=checkpointer,
     )
 
 
-def graph_config(run: Run, budget: Budget) -> RunnableConfig:
-    return {"configurable": {"thread_id": run.thread_id}, "recursion_limit": budget.max_steps}
+async def ensure_tools(deps: WorkerDeps) -> ToolBox:
+    """Load MCP tool schemas once per process and mirror them into the tools table (SPEC 12.4)."""
+    async with deps.tools_ready:
+        if not deps.toolbox.loaded:
+            await deps.toolbox.load()
+            await sync_tool_registry(deps.sessions, deps.toolbox.loaded)
+            try:  # OPA holds the registry as data (SPEC 15.1); the gate re-pushes if OPA restarts
+                await deps.policy.push_registry()
+            except httpx.HTTPError as exc:
+                log.warning("could not push the tool registry to OPA", error=str(exc))
+    return deps.toolbox
+
+
+def graph_config(
+    run: Run, budget: Budget, task: Task | None = None, settings: Settings | None = None
+) -> RunnableConfig:
+    configurable: dict[str, Any] = {"thread_id": run.thread_id}
+    # Every run reads and continues from its own branch head: after a replay forks the thread,
+    # the thread's newest checkpoint may belong to the replay (SPEC 19.4 step 4).
+    head = run.head_checkpoint_id or (
+        run.replay_from_checkpoint_id if run.kind == "replay" else None
+    )
+    if head:
+        configurable["checkpoint_id"] = head
+    config: RunnableConfig = {"configurable": configurable, "recursion_limit": budget.max_steps}
+    if task is not None and settings is not None:
+        handler = langchain_handler(str(run.id))
+        config["callbacks"] = [NodeTimer(), *([handler] if handler else [])]
+        # SPEC 19.1 trace identity: session = task (main and replays group), user = requester.
+        config["metadata"] = {
+            "langfuse_session_id": str(task.id),
+            "langfuse_user_id": str(task.requester_id),
+            "langfuse_tags": [settings.model_profile, settings.graph_version, run.kind],
+            "orchestrix_run_id": str(run.id),
+        }
+    return config
 
 
 async def build_context(deps: WorkerDeps, run: Run, task: Task) -> RunContext:
     settings = deps.settings
     defaults = {str(role): model for role, model in settings.default_models.items()}
-    resolved = resolve_models(task.model_overrides, {}, defaults)
+    resolved = resolve_models(
+        task.model_overrides, await admin_model_defaults(deps.sessions), defaults
+    )
     models = await deps.runs.set_model_config(run.id, {str(r): m for r, m in resolved.items()})
     if settings.fake_models:
         llm: Any = FakeChatProvider()
@@ -118,13 +229,24 @@ async def build_context(deps: WorkerDeps, run: Run, task: Task) -> RunContext:
             api_key=settings.litellm_master_key,
             models=models,  # pyright: ignore[reportArgumentType]
             prices=settings.model_prices,
+            run_id=str(run.id),
+            sink=deps.llm_calls,
+            team=str(task.team_id),
+            local_fallback=settings.local_fallback,
         )
-        specialists = StubSpecialistRunner()
+
+        async def enabled() -> set[str] | None:
+            return await enabled_tools(deps.sessions)
+
+        specialists = AgentSpecialistRunner(await ensure_tools(deps), enabled)
     services = Services(
         llm=llm,
         specialists=specialists,
-        recorder=deps.recorder,
+        recorder=deps.recorder.for_replay() if run.kind == "replay" else deps.recorder,
         cancel=RedisCancelCheck(deps.redis),
+        tool_calls=deps.tool_calls,
+        policy=None if settings.fake_models else deps.policy,
+        memory=None if settings.fake_models else deps.memory,
     )
     return RunContext(
         run_id=str(run.id),
@@ -136,6 +258,11 @@ async def build_context(deps: WorkerDeps, run: Run, task: Task) -> RunContext:
         max_concurrency=settings.max_concurrency,
         plan_confidence_threshold=settings.plan_confidence_threshold,
         review_score_threshold=settings.review_score_threshold,
+        side_effects="simulated" if run.kind == "replay" else "live",
+        escalation_levels=dict(deps.escalation_policy.levels),
+        org_email_domain=settings.org_email_domain,
+        active_seconds_base=run.active_seconds,
+        clarify_enabled=settings.clarify_enabled and not settings.fake_models,
     )
 
 
@@ -156,11 +283,15 @@ async def execute_run(deps: WorkerDeps, run_id: UUID) -> None:
         return
     lost = asyncio.Event()
     heartbeat = asyncio.create_task(_heartbeat(deps, run_id, lost))
+    started = time.monotonic()
     try:
-        with log_context(run_id=str(run_id)):
+        with log_context(run_id=str(run_id)), run_trace(str(run_id)):
             await _execute(deps, run_id, lost)
     finally:
         heartbeat.cancel()
+        if not lost.is_set():  # FR-63 active time: this worker's share, human waits excluded
+            await deps.runs.add_active_seconds(run_id, time.monotonic() - started)
+        flush_traces()
 
 
 async def _execute(deps: WorkerDeps, run_id: UUID, lost: asyncio.Event) -> None:
@@ -177,17 +308,39 @@ async def _execute(deps: WorkerDeps, run_id: UUID, lost: asyncio.Event) -> None:
 
     ctx = await build_context(deps, run, task)
     budget = Budget.model_validate(task.budget)
-    config = graph_config(run, budget)
+    config = graph_config(run, budget, task, deps.settings)
     snapshot = await deps.graph.aget_state(config)
 
     value: Any
-    if not snapshot.values:
+    if run.kind == "replay" and run.head_checkpoint_id is None:
+        # SPEC 19.4 step 3: fork from the chosen checkpoint, optionally patching state first.
+        if run.replay_patch:
+            forked = await deps.graph.aupdate_state(
+                config, run.replay_patch, as_node=run.replay_as_node
+            )
+            config["configurable"] = dict(forked.get("configurable", {}))
+        head = str(config.get("configurable", {}).get("checkpoint_id", ""))
+        if head:  # a crash from here on continues this branch instead of forking again
+            await deps.runs.set_head_checkpoint(run_id, head)
+        snapshot = await deps.graph.aget_state(config)
+        value = None
+        await deps.events.emit(
+            run_id,
+            RunLifecycleEvent(type="run.started", run_id=str(run_id), reason="replay").model_dump(
+                mode="json"
+            ),
+        )
+    elif not snapshot.values:
+        attachments = await deps.tasks.attachments(task.id)
         value = {
             "task": TaskInput(
                 id=str(task.id),
                 title=task.title,
                 description=task.description,
+                attachments=sorted(attachments),
+                attachment_ids=attachments,
                 require_plan_approval=task.require_plan_approval,
+                require_final_approval=task.require_final_approval,
             ),
             "budget": budget,
         }
@@ -208,14 +361,32 @@ async def _execute(deps: WorkerDeps, run_id: UUID, lost: asyncio.Event) -> None:
             ),
         )
 
+    head: str | None = None
     try:
         async for mode, chunk in deps.graph.astream(
-            value, config, context=ctx, stream_mode=["custom", "updates"], durability="sync"
+            value,
+            config,
+            context=ctx,
+            stream_mode=["custom", "updates", "checkpoints"],
+            durability="sync",
         ):
             if lost.is_set():
                 return  # another worker may own the run now: write nothing more
-            if mode == "custom":
-                await deps.events.emit(run_id, cast(dict[str, Any], chunk))
+            if mode == "checkpoints":
+                # This run's branch head (SPEC 19.4): root-namespace checkpoints only.
+                cp_config: dict[str, Any] = cast(dict[str, Any], chunk).get("config") or {}
+                configurable: dict[str, Any] = cp_config.get("configurable") or {}
+                if not configurable.get("checkpoint_ns") and configurable.get("checkpoint_id"):
+                    head = str(configurable["checkpoint_id"])
+                    # Saved as it happens: a worker that dies mid-run is resumed from here,
+                    # not from the checkpoint this stream started at.
+                    await deps.runs.set_head_checkpoint(run_id, head)
+            elif mode == "custom":
+                event = cast(dict[str, Any], chunk)
+                await deps.events.emit(run_id, event)
+                on_event(event)
+                if event.get("type") == "budget.warning":
+                    await _notify_budget(deps, run_id, task, event)
     except Exception as exc:
         if lost.is_set():
             return
@@ -223,10 +394,12 @@ async def _execute(deps: WorkerDeps, run_id: UUID, lost: asyncio.Event) -> None:
         await _fail(deps, run, task, f"error: {type(exc).__name__}: {exc}"[:500])
         return
 
+    if head is not None:
+        config["configurable"] = {**dict(config.get("configurable", {})), "checkpoint_id": head}
+    # Read the state at this run's own head: a pinned config would otherwise return the
+    # checkpoint the stream started from, and after a replay fork the thread's newest
+    # checkpoint may belong to another run.
     snapshot = await deps.graph.aget_state(config)
-    checkpoint_id = snapshot.config.get("configurable", {}).get("checkpoint_id")
-    if checkpoint_id:
-        await deps.runs.set_head_checkpoint(run_id, str(checkpoint_id))
 
     pending_ids = {i.id for i in snapshot.interrupts}
     await deps.escalations.resolve_missing(run_id, pending_ids)
@@ -240,13 +413,41 @@ async def _execute(deps: WorkerDeps, run_id: UUID, lost: asyncio.Event) -> None:
         status, "failed" if status in TERMINAL else "running"
     )
     await deps.runs.release(run_id, WORKER_ID, run_status)
+    if run_status != "running":
+        run_finished(run_status, deps.settings.model_profile, ctx.active_seconds())
+
+
+async def _notify_budget(deps: WorkerDeps, run_id: UUID, task: Task, event: dict[str, Any]) -> None:
+    """budget_80 (SPEC 14.1): level notify, so a resolved row plus a notification, once per run."""
+    warning = BudgetEvent.model_validate(event)
+    payload = {
+        "trigger": "budget_80",
+        "level": "notify",
+        "title": f"Run at {warning.used / warning.cap:.0%} of its {warning.metric} budget"
+        if warning.cap
+        else "Run near its budget",
+        "task_summary": task.title,
+        "proposed": {"metric": warning.metric, "used": warning.used, "cap": warning.cap},
+    }
+    escalation_id = await deps.escalations.record_notify(run_id, "budget_80", payload, task.team_id)
+    if escalation_id is not None:
+        await deps.notifier.escalation(str(escalation_id), payload)
 
 
 async def _pause(deps: WorkerDeps, run_id: UUID, task: Task, interrupts: list[Any]) -> None:
-    """SPEC 14.3 step 2: escalation rows, task status, run paused, lease released."""
+    """SPEC 14.3 steps 2-3: escalation rows, task status, run paused, lease released, notify."""
+    sla = timedelta(hours=deps.escalation_policy.sla_hours)
     for intr in interrupts:
         payload: dict[str, Any] = dict(intr.value)
-        if await deps.escalations.upsert_open(run_id, intr.id, payload):
+        escalation_id = await deps.escalations.upsert_open(
+            run_id, intr.id, payload, assignee_team_id=task.team_id, sla=sla
+        )
+        if escalation_id is not None:
+            with span(
+                "escalation.create",
+                **{"orchestrix.trigger": payload["trigger"], "orchestrix.level": payload["level"]},
+            ):
+                await deps.notifier.escalation(str(escalation_id), payload)
             await deps.events.emit(
                 run_id,
                 EscalationEvent(
@@ -276,8 +477,23 @@ async def _fail(deps: WorkerDeps, run: Run, task: Task, reason: str) -> None:
         ),
     )
     await deps.runs.release(run.id, WORKER_ID, "failed")
+    run_finished("failed", deps.settings.model_profile, run.active_seconds)
+
+
+async def maintenance_llm(deps: WorkerDeps) -> GatewayChatProvider:
+    """A provider for jobs outside any run (consolidation): admin/settings defaults, no run row."""
+    defaults = {str(role): model for role, model in deps.settings.default_models.items()}
+    models = resolve_models({}, await admin_model_defaults(deps.sessions), defaults)
+    return GatewayChatProvider(
+        base_url=deps.settings.litellm_url,
+        api_key=deps.settings.litellm_master_key,
+        models=models,
+        prices=deps.settings.model_prices,
+        local_fallback=deps.settings.local_fallback,
+    )
 
 
 async def close_deps(deps: WorkerDeps) -> None:
+    await deps.http.aclose()
     await deps.pool.close()
     await deps.redis.aclose()

@@ -1,0 +1,25 @@
+# SPEC 19.2 alerts.
+groups:
+  - name: orchestrix
+    rules:
+      - alert: RunFailureRateHigh
+        expr: |
+          sum(increase(orchestrix_runs_total{status="failed"}[15m]))
+            / clamp_min(sum(increase(orchestrix_runs_total[15m])), 1) > 0.2
+        for: 5m
+        labels: {severity: page}
+        annotations: {summary: "More than 20% of runs failed over 15 minutes"}
+      - alert: RunLeaseReclaimLoop
+        expr: increase(orchestrix_run_lease_reclaims_total[15m]) >= 3
+        labels: {severity: page}
+        annotations: {summary: "Runs are being reclaimed repeatedly (worker crash loop)"}
+      - alert: OpaUnreachable
+        expr: up{job="opa"} == 0
+        for: 1m
+        labels: {severity: page}
+        annotations: {summary: "OPA is down: every tool call is denied (fail closed)"}
+      - alert: EscalationsPastSla
+        expr: max(orchestrix_escalations_overdue) > 0
+        for: 15m
+        labels: {severity: ticket}
+        annotations: {summary: "Escalations are waiting past their SLA"}

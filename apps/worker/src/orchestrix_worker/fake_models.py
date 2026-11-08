@@ -24,7 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from orchestrix_agents.context import RunContext, SpecialistOutcome, SpecialistRequest
 from orchestrix_core.db.models import ToolCall
-from orchestrix_core.schemas import ModelPrice, Plan, Review, Role, SubtaskResult, Usage
+from orchestrix_core.schemas import CallTag, ModelPrice, Plan, Review, Role, SubtaskResult, Usage
 
 USAGE = {"input_tokens": 200, "output_tokens": 80, "total_tokens": 280}
 
@@ -107,7 +107,7 @@ class FakeModel(BaseChatModel):
 
 
 class FakeChatProvider:
-    def chat(self, role: Role) -> BaseChatModel:
+    def chat(self, role: Role, tag: CallTag | None = None) -> BaseChatModel:
         return FakeModel()
 
     def model_name(self, role: Role) -> str:

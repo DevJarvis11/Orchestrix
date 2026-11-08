@@ -1,0 +1,247 @@
+<title>Orchestrix</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,500..800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one left-aligned control-room column; diagrams get full width, everything else sits on a 65ch measure. */
+:root {
+  --bg: #f6f8f8;
+  --surface: #ffffff;
+  --ink: #12201f;
+  --muted: #4b5c5b;
+  --line: #d5dfde;
+  --accent: #0e6e66;      /* the run path: teal */
+  --gate: #a6560a;        /* human gates: amber, as in the product's "awaiting human" status */
+  --ok: #1d7a3e;
+  --pending: #6b7a79;
+  --code-bg: #eaf0ef;
+  --display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1716; --surface: #13201f; --ink: #e3ecea; --muted: #9fb1af; --line: #2a3b3a;
+    --accent: #4cc2b4; --gate: #f0a24a; --ok: #5cc97f; --pending: #8a9b99; --code-bg: #182827;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1716; --surface: #13201f; --ink: #e3ecea; --muted: #9fb1af; --line: #2a3b3a;
+  --accent: #4cc2b4; --gate: #f0a24a; --ok: #5cc97f; --pending: #8a9b99; --code-bg: #182827;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.6 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 0 72px; display: grid; gap: 72px; }
+section { display: grid; gap: 20px; min-width: 0; }
+h1, h2, h3 { font-family: var(--display); font-stretch: 85%; line-height: 1.1; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(44px, 7vw, 76px); font-weight: 800; letter-spacing: -0.01em; }
+h2 { font-size: clamp(28px, 3.6vw, 38px); font-weight: 700; }
+h3 { font-size: 18px; font-weight: 700; font-stretch: 90%; }
+p { margin: 0; max-width: 65ch; }
+.lede { font-size: 19px; color: var(--muted); }
+.eyebrow { font: 500 12px/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); }
+a { color: var(--accent); text-underline-offset: 3px; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+code, pre, .mono { font-family: var(--mono); font-size: 14px; }
+
+/* hero */
+header.hero { padding-block: 64px 8px; display: grid; gap: 22px; }
+.facts { display: flex; flex-wrap: wrap; gap: 10px 28px; padding: 0; margin: 4px 0 0; list-style: none; }
+.facts li { display: grid; gap: 2px; }
+.facts b { font: 700 30px/1 var(--display); font-stretch: 85%; font-variant-numeric: tabular-nums; }
+.facts span { font-size: 13px; color: var(--muted); }
+.status { display: inline-flex; align-items: center; gap: 8px; font: 500 13px var(--mono); color: var(--gate);
+  border: 1px solid currentColor; border-radius: 999px; padding: 6px 12px; width: fit-content; }
+.status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+
+/* diagrams */
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.tabs button { font: 500 14px var(--body); color: var(--ink); background: transparent; border: 1px solid var(--line);
+  border-radius: 8px; padding: 8px 14px; cursor: pointer; transition: transform .15s, border-color .15s, background .15s; }
+.tabs button:hover { border-color: var(--accent); transform: translateY(-1px); }
+.tabs button:active { transform: translateY(0); }
+.tabs button[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.frame { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--surface); }
+.frame iframe { display: block; width: 100%; height: min(78vh, 860px); border: 0; background: var(--surface); }
+.frame-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 10px 14px; border-top: 1px solid var(--line); font-size: 14px; color: var(--muted); }
+
+/* how it works: three columns of facts */
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 28px; }
+.cols > div { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.cols p { font-size: 15px; color: var(--muted); }
+.gate-word { color: var(--gate); font-weight: 600; }
+
+/* status table */
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { width: 100%; border-collapse: collapse; font-size: 15px; min-width: 640px; }
+th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 500 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+tr:last-child td { border-bottom: 0; }
+td:first-child { font: 600 14px var(--mono); white-space: nowrap; }
+.chip { display: inline-flex; align-items: center; gap: 6px; font: 500 12px var(--mono); white-space: nowrap; }
+.chip::before { content: ""; width: 8px; height: 8px; border-radius: 2px; background: currentColor; }
+.chip.ok { color: var(--ok); } .chip.part { color: var(--gate); } .chip.todo { color: var(--pending); }
+
+/* run steps */
+ol.steps { list-style: none; counter-reset: s; padding: 0; margin: 0; display: grid; gap: 18px; }
+ol.steps > li { counter-increment: s; display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 4px 14px; }
+ol.steps > li::before { content: counter(s); grid-row: span 2; font: 700 22px/1.2 var(--display); color: var(--accent); }
+.code { position: relative; background: var(--code-bg); border-radius: 8px; min-width: 0; }
+.code pre { margin: 0; padding: 14px 92px 14px 16px; overflow-x: auto; line-height: 1.55; }
+.code button { position: absolute; top: 8px; right: 8px; font: 500 12px var(--mono); color: var(--ink);
+  background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+.code button:hover { border-color: var(--accent); }
+footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 18px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="hero">
+    <span class="eyebrow">Multi-agent orchestration platform</span>
+    <h1>Orchestrix</h1>
+    <p class="lede">One request becomes a planned, executed and reviewed deliverable. A supervisor plans a graph of subtasks, specialist agents run them in parallel with tools, a reviewer scores every result, and the run stops for a person before any risky step. Every step is checkpointed, traced and replayable.</p>
+    <ul class="facts">
+      <li><b>4</b><span>specialist agents</span></li>
+      <li><b>5</b><span>MCP tool servers</span></li>
+      <li><b>6</b><span>kinds of human gate</span></li>
+      <li><b>251</b><span>automated tests passing</span></li>
+      <li><b>17</b><span>policy tests passing</span></li>
+    </ul>
+    <span class="status" id="build-status">All milestones coded · live verification in progress</span>
+  </header>
+
+  <section id="diagrams" aria-labelledby="diagrams-h">
+    <span class="eyebrow">Diagrams</span>
+    <h2 id="diagrams-h">See how it works</h2>
+    <div class="tabs" role="tablist" aria-label="Diagram">
+      <button role="tab" id="tab-run" aria-selected="true" aria-controls="diagram-frame" data-src="diagrams/run-graph.html">How a task runs</button>
+      <button role="tab" id="tab-arch" aria-selected="false" aria-controls="diagram-frame" data-src="diagrams/architecture.html">What it is made of</button>
+      <button role="tab" id="tab-seq" aria-selected="false" aria-controls="diagram-frame" data-src="diagrams/approval-sequence.html">A person approves a tool</button>
+      <button role="tab" id="tab-life" aria-selected="false" aria-controls="diagram-frame" data-src="diagrams/task-lifecycle.html">Where a task stands</button>
+    </div>
+    <div class="frame">
+      <iframe id="diagram-frame" title="Orchestrix diagram" src="diagrams/run-graph.html" loading="lazy"></iframe>
+      <div class="frame-bar"><span id="diagram-name">Run graph: plan, execute and review, with human gates</span><a id="diagram-open" href="diagrams/run-graph.html" target="_blank" rel="noopener">Open full size</a></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="how-h">
+    <span class="eyebrow">Guarantees</span>
+    <h2 id="how-h">What the platform enforces in code</h2>
+    <div class="cols">
+      <div><h3>Durable runs</h3><p>Every graph step is checkpointed in Postgres. A worker that dies mid-run loses its lease, and another worker resumes from the last checkpoint without repeating tool calls.</p></div>
+      <div><h3>People at the risky steps</h3><p>OPA checks every tool call. Sensitive tools, low plan confidence, low review scores and budget caps raise a <span class="gate-word">human gate</span>; a second person decides, never the requester.</p></div>
+      <div><h3>Untrusted content stays data</h3><p>Fetched pages and uploads are wrapped, scanned for prompt injection and taint the subtask, so injected text can never trigger an action without approval.</p></div>
+      <div><h3>Isolated code execution</h3><p>The sandbox has no network, a read-only root filesystem, CPU, memory and time limits, and no storage credentials.</p></div>
+      <div><h3>Every call accounted</h3><p>Each model and tool call is recorded with tokens, cost, latency, the model that served it and why it was called.</p></div>
+      <div><h3>Model-agnostic</h3><p>Agents ask for a role. One setting maps roles to models; the defaults run on <code>gpt-oss-120b</code> over the VPN.</p></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="status-h">
+    <span class="eyebrow">Build status</span>
+    <h2 id="status-h">Milestones</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Milestone</th><th>Scope</th><th>State</th><th>Evidence</th></tr></thead>
+        <tbody id="status-rows">
+          <tr><td>M0–M2</td><td>Foundation, graph core, worker leases, tasks API, SSE</td><td><span class="chip ok">verified, committed</span></td><td>Unit, graph and integration tests; worker-kill resilience test</td></tr>
+          <tr><td>M3</td><td>MCP tool servers, specialists, sandbox, injection guard</td><td><span class="chip ok">verified</span></td><td>Sandbox isolation proven live; injection pages flagged; real specialist runs on gpt-oss-120b</td></tr>
+          <tr><td>M4</td><td>Policy, human-in-the-loop, escalation API</td><td><span class="chip ok">verified</span></td><td>17 Rego tests; live pause and resume by a second user</td></tr>
+          <tr><td>M5</td><td>Tracing, metrics, dashboards, cost accounting</td><td><span class="chip part">code complete</span></td><td>Gateway cost header recorded per call; observability profile not yet run live</td></tr>
+          <tr><td>M6</td><td>Long-term memory</td><td><span class="chip part">code complete</span></td><td>Seeded lesson embedded (2560-d); retrieval unit-tested</td></tr>
+          <tr><td>M7</td><td>Web app and Keycloak login</td><td><span class="chip part">code complete</span></td><td>Lint, typecheck and build pass; browser journeys not yet run</td></tr>
+          <tr><td>M8</td><td>Replay, evals, hardening, demo</td><td><span class="chip part">code complete</span></td><td>40 golden tasks and 5 eval datasets built; eval run pending</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="run-h">
+    <span class="eyebrow">Run it locally</span>
+    <h2 id="run-h">From a fresh clone to a running showcase</h2>
+    <p>Everything runs in WSL Ubuntu with Docker Desktop. The full guide, with model switching and troubleshooting, is <code>docs/RUN_LOCALLY.md</code> in the repository.</p>
+    <ol class="steps">
+      <li><h3>Install dependencies and create .env</h3>
+        <div class="code"><pre>uv sync --all-packages --frozen
+pnpm install --frozen-lockfile
+make env      # then set REMOTE_LLM_API_KEY in .env</pre><button type="button">Copy</button></div></li>
+      <li><h3>Turn on the VPN and check every model</h3>
+        <div class="code"><pre>make gateway-check</pre><button type="button">Copy</button></div></li>
+      <li><h3>Start the stack and seed demo data</h3>
+        <div class="code"><pre>make dev
+make seed</pre><button type="button">Copy</button></div></li>
+      <li><h3>Open the web app</h3>
+        <div class="code"><pre>pnpm --filter @orchestrix/web dev     # http://localhost:5173
+make dev-token                        # paste the token to sign in</pre><button type="button">Copy</button></div></li>
+      <li><h3>Run the showcase request</h3>
+        <div class="code"><pre>uv run python scripts/showcase.py</pre><button type="button">Copy</button></div></li>
+    </ol>
+  </section>
+
+  <section aria-labelledby="models-h">
+    <span class="eyebrow">Models</span>
+    <h2 id="models-h">Change the model in one place</h2>
+    <p>Add the model to <code>infra/litellm/config.yaml</code>, point a role at it in <code>.env</code>, and restart. No code names a model.</p>
+    <div class="code"><pre>ORCHESTRIX_DEFAULT_MODELS={"planner":"gpt-oss-120b","specialist":"gpt-oss-120b","reviewer":"gpt-oss-120b","fast":"gpt-oss-120b"}
+ORCHESTRIX_LOCAL_FALLBACK=false   # VPN models only</pre><button type="button">Copy</button></div>
+  </section>
+
+  <footer>Orchestrix · private repository DevJarvis11/Orchestrix · diagrams rendered with Archify</footer>
+</div>
+
+<script>
+(() => {
+  const names = {
+    "tab-run": "Run graph: plan, execute and review, with human gates",
+    "tab-arch": "System architecture: services, stores and the model gateway",
+    "tab-seq": "Human approval of a sensitive tool, end to end",
+    "tab-life": "Task status lifecycle (FR-01)",
+  };
+  const frame = document.getElementById("diagram-frame");
+  const open = document.getElementById("diagram-open");
+  const label = document.getElementById("diagram-name");
+  const tabs = [...document.querySelectorAll('[role="tab"]')];
+  function select(tab) {
+    tabs.forEach((t) => t.setAttribute("aria-selected", String(t === tab)));
+    frame.src = tab.dataset.src;
+    open.href = tab.dataset.src;
+    label.textContent = names[tab.id];
+    try { localStorage.setItem("orchestrix-tab", tab.id); } catch (e) {}
+  }
+  tabs.forEach((tab, i) => {
+    tab.addEventListener("click", () => select(tab));
+    tab.addEventListener("keydown", (e) => {
+      const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+      if (!step) return;
+      const next = tabs[(i + step + tabs.length) % tabs.length];
+      next.focus(); select(next);
+    });
+  });
+  try {
+    const saved = document.getElementById(localStorage.getItem("orchestrix-tab") || "");
+    if (saved && saved !== tabs[0]) select(saved);
+  } catch (e) {}
+  document.querySelectorAll(".code button").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const text = button.parentElement.querySelector("pre").innerText;
+      try { await navigator.clipboard.writeText(text); button.textContent = "Copied"; }
+      catch (e) {
+        const range = document.createRange();
+        range.selectNodeContents(button.parentElement.querySelector("pre"));
+        const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+        button.textContent = "Selected";
+      }
+      setTimeout(() => (button.textContent = "Copy"), 1600);
+    });
+  });
+})();
+</script>

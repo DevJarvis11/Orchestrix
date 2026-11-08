@@ -6,8 +6,16 @@ authors = [
     { name = "ankith", email = "ankithm111@gmail.com" }
 ]
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "orchestrix-tools",
+    "psycopg[binary,pool]>=3.3.6",
+    "sqlglot>=30.24.0",
+    "uvicorn>=0.54.0",
+]
 
 [build-system]
 requires = ["uv_build>=0.12.0,<0.13.0"]
 build-backend = "uv_build"
+
+[tool.uv.sources]
+orchestrix-tools = { workspace = true }

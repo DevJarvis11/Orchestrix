@@ -6,7 +6,14 @@
 		"useIgnoreFile": true
 	},
 	"files": {
-		"ignoreUnknown": false
+		"ignoreUnknown": false,
+		"includes": [
+			"**",
+			"!src/lib/api/schema.d.ts",
+			"!openapi.json",
+			"!dist",
+			"!scripts"
+		]
 	},
 	"formatter": {
 		"enabled": true,
@@ -29,6 +36,11 @@
 			"source": {
 				"organizeImports": "on"
 			}
+		}
+	},
+	"css": {
+		"parser": {
+			"tailwindDirectives": true
 		}
 	}
 }

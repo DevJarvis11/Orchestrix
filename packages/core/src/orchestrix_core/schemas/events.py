@@ -62,6 +62,7 @@ class ReviewEvent(_Event):
     subtask: str | None  # None = final review
     verdict: str
     score: float
+    specialist: str | None = None
 
 
 class EscalationEvent(_Event):
@@ -70,6 +71,8 @@ class EscalationEvent(_Event):
     trigger: str
     level: EscalationLevel
     subtask: str | None = None
+    actor: str | None = None  # who resolved it ("resumed by <reviewer>", journey 5.2)
+    action: str | None = None
 
 
 class BudgetEvent(_Event):

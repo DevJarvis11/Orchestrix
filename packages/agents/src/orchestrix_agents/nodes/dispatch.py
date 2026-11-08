@@ -14,6 +14,7 @@ from orchestrix_core.schemas import (
     EscalationPayload,
     EscalationRecord,
     Plan,
+    Usage,
 )
 from orchestrix_core.schemas.events import BudgetEvent, SubtaskEvent
 
@@ -50,8 +51,8 @@ async def dispatch(state: RunState, runtime: Runtime[RunContext]) -> dict[str, A
         return {"stop_reason": "cancelled", "usage": STEP}
 
     update: dict[str, Any] = {"usage": STEP}
-    budget = state.get("budget", ctx.budget)
-    status = check_budget(state.get("usage") or STEP, budget)
+    budget = state.get("budget") or ctx.budget
+    status = check_budget(state.get("usage") or STEP, budget, active_seconds=ctx.active_seconds())
     if status.level == "exceeded":
         # budget_100 (SPEC 14.1): raise the caps or stop. Asked before any write in this node.
         decision = ask_human(
@@ -134,7 +135,12 @@ def resolve_inputs(state: RunState, key: str) -> dict[str, str]:
             dep = ref.removesuffix(".output")
             resolved[name] = results[dep].output if dep in results else ""
         else:
-            resolved[name] = f"[{ref}: read it with files.read_artifact]"
+            attachment = ref.removeprefix("attachment:")
+            artifact_id = state["task"].attachment_ids.get(attachment, "unknown")
+            resolved[name] = (
+                f"[attachment {attachment!r}, artifact_id={artifact_id}: "
+                "read it with files_read_artifact]"
+            )
     return resolved
 
 
@@ -144,7 +150,11 @@ def build_worker_input(state: RunState, key: str) -> WorkerState:
         "subtask": subtask,
         "plan_version": state.get("plan_version", 1),
         "inputs": resolve_inputs(state, key),
+        # Taint propagates: inputs from a tainted subtask taint this one (SPEC 15.2).
+        "tainted_inputs": any(state.get("tainted", {}).get(d, False) for d in subtask.depends_on),
         "memories": state.get("memories", []),
+        "usage_before": state.get("usage") or Usage(),
+        "budget_now": state.get("budget") or Budget(),
         "attempts": 0,
         "revisions": 0,
         "feedback": "",

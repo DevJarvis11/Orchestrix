@@ -33,9 +33,19 @@ def add_usage(left: Usage | None, right: Usage | None) -> Usage:
     return (left or Usage()) + (right or Usage())
 
 
+def raise_budget(left: Budget | None, right: Budget | None) -> Budget:
+    """Caps only go up: parallel workers may each report a human-approved raise (budget_100)."""
+    if left is None or right is None:
+        return left or right or Budget()
+    a, b = left.model_dump(), right.model_dump()
+    return Budget.model_validate({k: max(a[k], b[k]) for k in a})
+
+
 class RunState(TypedDict, total=False):
     task: Required[TaskInput]
-    budget: Budget  # effective caps; a human may raise them at budget_100 (persisted, so not in context)
+    budget: Annotated[
+        Budget | None, raise_budget
+    ]  # effective caps; humans may raise them (budget_100)
     memories: list[MemoryHit]
     plan: Plan
     plan_version: int
@@ -47,7 +57,12 @@ class RunState(TypedDict, total=False):
     deliverable: str
     final_review: Review
     final_revisions: int
+    final_outcome: Literal["pass", "revise", "escalate"]  # final_review -> final_gate
+    clarify_questions: list[str]  # FR-15: pending questions for the requester
+    clarifications: list[str]  # answered Q&A: the requester's own words
+    clarified: bool  # the supervisor asked (or decided not to ask) once
     stop_reason: StopReason  # set by dispatch/escalations; routes straight to finalize
+    tainted: Annotated[dict[str, bool], merge_dict]  # subtask -> untrusted content seen (SPEC 15.2)
     usage: Annotated[Usage, add_usage]
     errors: Annotated[list[ErrorRecord], operator.add]
     escalations: Annotated[list[EscalationRecord], operator.add]
@@ -59,6 +74,9 @@ class WorkerState(TypedDict, total=False):
     subtask: Required[PlannedSubtask]
     plan_version: int
     inputs: dict[str, str]  # resolved input name -> content
+    tainted_inputs: bool  # an input came from a tainted subtask
+    usage_before: Usage  # the run's usage when this worker started (budget checks)
+    budget_now: Budget  # the run's effective caps when this worker started
     memories: list[MemoryHit]
     attempts: int
     revisions: int
@@ -69,6 +87,8 @@ class WorkerState(TypedDict, total=False):
     outcome: Literal["review", "retry", "escalate", "done"]  # where the worker goes next
     escalate_trigger: str
     stop_reason: StopReason  # a human chose fail_task
+    budget: Annotated[Budget | None, raise_budget]
+    tainted: Annotated[dict[str, bool], merge_dict]
     subtask_status: Annotated[dict[str, SubtaskStatus], merge_dict]
     subtask_results: Annotated[dict[str, SubtaskResult], merge_dict]
     reviews: Annotated[dict[str, list[Review]], merge_dict]
@@ -81,6 +101,8 @@ class WorkerOutput(TypedDict, total=False):
     """What the subgraph hands back to the parent: the shared keys only."""
 
     stop_reason: StopReason
+    budget: Annotated[Budget | None, raise_budget]
+    tainted: Annotated[dict[str, bool], merge_dict]
     subtask_status: Annotated[dict[str, SubtaskStatus], merge_dict]
     subtask_results: Annotated[dict[str, SubtaskResult], merge_dict]
     reviews: Annotated[dict[str, list[Review]], merge_dict]

@@ -1,0 +1,218 @@
+{
+  "realm": "orchestrix",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "accessTokenLifespan": 900,
+  "roles": {
+    "realm": [
+      {
+        "name": "requester",
+        "description": "Create tasks and watch own runs"
+      },
+      {
+        "name": "reviewer",
+        "description": "Decide escalations for their teams"
+      },
+      {
+        "name": "operator",
+        "description": "Operate the platform: tasks, traces, costs, replays, tools, budgets"
+      },
+      {
+        "name": "admin",
+        "description": "Everything, including policies and model routing"
+      }
+    ]
+  },
+  "groups": [
+    {
+      "name": "platform"
+    },
+    {
+      "name": "research"
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "orchestrix-web",
+      "name": "Orchestrix web app",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "http://localhost:5173/*"
+      ],
+      "webOrigins": [
+        "http://localhost:5173"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5173/*"
+      },
+      "defaultClientScopes": [
+        "web-origins",
+        "profile",
+        "roles",
+        "email"
+      ],
+      "protocolMappers": [
+        {
+          "name": "audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "orchestrix-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        },
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "config": {
+            "claim.name": "groups",
+            "full.path": "false",
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "alice",
+      "email": "alice@orchestrix.local",
+      "emailVerified": true,
+      "firstName": "Alice",
+      "lastName": "Requester",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_DEMO_PASSWORD}",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "requester"
+      ],
+      "groups": [
+        "platform"
+      ]
+    },
+    {
+      "username": "bob",
+      "email": "bob@orchestrix.local",
+      "emailVerified": true,
+      "firstName": "Bob",
+      "lastName": "Reviewer",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_DEMO_PASSWORD}",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "requester",
+        "reviewer"
+      ],
+      "groups": [
+        "platform"
+      ]
+    },
+    {
+      "username": "carol",
+      "email": "carol@orchestrix.local",
+      "emailVerified": true,
+      "firstName": "Carol",
+      "lastName": "Reviewer",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_DEMO_PASSWORD}",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "requester",
+        "reviewer"
+      ],
+      "groups": [
+        "research"
+      ]
+    },
+    {
+      "username": "dave",
+      "email": "dave@orchestrix.local",
+      "emailVerified": true,
+      "firstName": "Dave",
+      "lastName": "Requester",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_DEMO_PASSWORD}",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "requester"
+      ],
+      "groups": [
+        "research"
+      ]
+    },
+    {
+      "username": "oscar",
+      "email": "oscar@orchestrix.local",
+      "emailVerified": true,
+      "firstName": "Oscar",
+      "lastName": "Operator",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_DEMO_PASSWORD}",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "operator"
+      ],
+      "groups": [
+        "platform",
+        "research"
+      ]
+    },
+    {
+      "username": "ada",
+      "email": "ada@orchestrix.local",
+      "emailVerified": true,
+      "firstName": "Ada",
+      "lastName": "Admin",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KC_DEMO_PASSWORD}",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "admin",
+        "requester",
+        "reviewer",
+        "operator"
+      ],
+      "groups": [
+        "platform"
+      ]
+    }
+  ]
+}

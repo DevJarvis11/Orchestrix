@@ -1,0 +1,65 @@
+# Eval suite (SPEC 20.2, NFR-10). Manual dispatch only: GitHub-hosted runners cannot reach the
+# Yotta VPN models (BUILD_LOG 2026-10-25), and the local profile needs a GPU. Run it on a
+# self-hosted GPU runner, or locally with `make eval-smoke` / `make eval-full`.
+name: eval
+
+on:
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: smoke | full | defects | escalation | injection | memory
+        default: smoke
+      models:
+        description: model for every role (e.g. gpt-oss-120b, qwen3-8b-local) or role->model JSON
+        default: qwen3-8b-local
+      judge_models:
+        description: judge (reviewer role) model; use the strongest available
+        default: gpt-oss-120b
+      runs:
+        description: runs per case
+        default: "3"
+  # Enable once a self-hosted runner with model access exists (SPEC 20.2 "where evals run"):
+  # schedule:
+  #   - cron: "0 2 * * *"          # nightly full suite
+  # pull_request:
+  #   types: [labeled, synchronize] # smoke suite on PRs labelled agents-change
+
+permissions:
+  contents: read
+
+jobs:
+  eval:
+    # if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'agents-change')
+    runs-on: [self-hosted, gpu]
+    timeout-minutes: 720
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.12.0"
+      - name: Install
+        run: uv sync --all-packages --frozen
+      - name: Start the stack
+        run: |
+          make env
+          make dev
+          make migrate
+      - name: Run evals
+        env:
+          ORCHESTRIX_EVAL_JUDGE_MODELS: ${{ inputs.judge_models }}
+        run: >
+          uv run python -m orchestrix_evals run
+          --suite "${{ inputs.suite }}"
+          --models "${{ inputs.models }}"
+          --runs "${{ inputs.runs }}"
+          --out "reports/${{ inputs.suite }}"
+          --push-langfuse
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: eval-${{ inputs.suite }}
+          path: reports/
+      - name: Stop the stack
+        if: always()
+        run: make down

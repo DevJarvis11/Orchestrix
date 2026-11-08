@@ -6,7 +6,9 @@ name: orchestrix
 
 x-app-env: &app-env
   ORCHESTRIX_ENV: development
-  ORCHESTRIX_AUTH_MODE: dev
+  ORCHESTRIX_AUTH_MODE: ${ORCHESTRIX_AUTH_MODE:-dev}
+  ORCHESTRIX_OIDC_ISSUER: http://localhost:8180/realms/orchestrix
+  ORCHESTRIX_OIDC_JWKS_URL: http://keycloak:8080/realms/orchestrix/protocol/openid-connect/certs
   ORCHESTRIX_DATABASE_URL: postgresql+psycopg://orchestrix_app:${ORCHESTRIX_APP_PASSWORD}@postgres:5432/orchestrix
   ORCHESTRIX_REDIS_URL: redis://redis:6379/0
   ORCHESTRIX_S3_ENDPOINT: http://s3:9000
@@ -23,6 +25,13 @@ x-app-env: &app-env
   ORCHESTRIX_FAKE_MODEL_DELAY_SECONDS: ${ORCHESTRIX_FAKE_MODEL_DELAY_SECONDS:-0}
   ORCHESTRIX_LEASE_SECONDS: ${ORCHESTRIX_LEASE_SECONDS:-60}
   ORCHESTRIX_HEARTBEAT_SECONDS: ${ORCHESTRIX_HEARTBEAT_SECONDS:-15}
+  # Tracing is opt-in: `make obs` / `make dev-full` set ORCHESTRIX_LANGFUSE_HOST (SPEC 19.1).
+  LANGFUSE_HOST: ${ORCHESTRIX_LANGFUSE_HOST:-}
+  LANGFUSE_PUBLIC_KEY: ${LANGFUSE_INIT_PROJECT_PUBLIC_KEY:-}
+  LANGFUSE_SECRET_KEY: ${LANGFUSE_INIT_PROJECT_SECRET_KEY:-}
+  ORCHESTRIX_SLACK_WEBHOOK_URL: ${ORCHESTRIX_SLACK_WEBHOOK_URL:-}
+  ORCHESTRIX_LOCAL_FALLBACK: ${ORCHESTRIX_LOCAL_FALLBACK:-true}  # false = VPN models only
+  ORCHESTRIX_DEFAULT_MODELS: ${ORCHESTRIX_DEFAULT_MODELS:-}  # role -> catalogue model (.env)
 
 x-api-build: &api-build
   context: ../..
@@ -104,7 +113,7 @@ services:
   opa:
     profiles: [core]
     image: openpolicyagent/opa:1.21.3
-    command: ["run", "--server", "--addr=0.0.0.0:8181", "--log-level=info", "/policies"]
+    command: ["run", "--server", "--watch", "--addr=0.0.0.0:8181", "--log-level=info", "/policies"]
     volumes: [../../policies:/policies:ro]
     ports: ["127.0.0.1:58181:8181"]
     healthcheck:
@@ -186,6 +195,10 @@ services:
     stop_grace_period: 45s  # drain the current step (NFR-04)
     image: orchestrix-worker:dev
     # Import jobs and scheduled tasks so this worker can execute them.
+    networks: [default, sandbox]
+    environment:
+      <<: *app-env
+      ORCHESTRIX_METRICS_PORT: "9464"  # /metrics for Prometheus (SPEC 19.2)
     command:
       - taskiq
       - worker
@@ -194,7 +207,6 @@ services:
       - orchestrix_worker.scheduler
       - --workers
       - "1"
-    environment: *app-env
     depends_on: *app-depends
     healthcheck:
       test: ["CMD", "python", "-m", "orchestrix_worker.healthcheck"]
@@ -221,7 +233,321 @@ services:
     mem_limit: 384m
     restart: unless-stopped
 
+  # --- MCP tool servers (SPEC 12.4): internal only, service-token auth, /healthz ---------------
+
+  mcp-web:
+    profiles: [core]
+    build: &mcp-web-build
+      context: ../..
+      dockerfile: infra/docker/python.Dockerfile
+      args:
+        PACKAGE: orchestrix-mcp-web
+    image: orchestrix-mcp-web:dev
+    command: ["python", "-m", "orchestrix_mcp_web"]
+    environment:
+      ORCHESTRIX_MCP_SERVICE_TOKEN: ${ORCHESTRIX_MCP_SERVICE_TOKEN}
+      ORCHESTRIX_SEARXNG_URL: http://searxng:8080
+      # `make demo` replays recorded searches and pages with no network (SPEC 5.6).
+      ORCHESTRIX_WEB_FIXTURES_DIR: ${ORCHESTRIX_WEB_FIXTURES_DIR:-}
+      ORCHESTRIX_WEB_FIXTURES_ONLY: ${ORCHESTRIX_WEB_FIXTURES_ONLY:-false}
+    volumes: [../../tests/fixtures/web:/fixtures/web:ro]
+    depends_on:
+      searxng:
+        condition: service_healthy
+    healthcheck: &mcp-health
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    mem_limit: 256m
+    restart: unless-stopped
+
+  mcp-sandbox:
+    profiles: [core]
+    build:
+      context: ../..
+      dockerfile: infra/docker/python.Dockerfile
+      args:
+        PACKAGE: orchestrix-mcp-sandbox
+    image: orchestrix-mcp-sandbox:dev
+    command: ["python", "-m", "orchestrix_mcp_sandbox"]
+    environment:
+      ORCHESTRIX_MCP_SERVICE_TOKEN: ${ORCHESTRIX_MCP_SERVICE_TOKEN}
+      MPLCONFIGDIR: /tmp/mpl
+    # Hardening (SPEC 12.4, 21.2): no route out, read-only root, tmpfs work dirs, no privileges.
+    # No storage credentials: the worker moves file bytes in and out (orchestrix_tools.client).
+    networks: [sandbox]
+    read_only: true
+    tmpfs:
+      - /work:size=256m,mode=1777
+      - /tmp:size=64m,mode=1777
+    user: "10001:10001"
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 128
+    cpus: 1.0
+    mem_limit: 1g
+    healthcheck: *mcp-health
+    restart: unless-stopped
+
+  mcp-data:
+    profiles: [core]
+    build:
+      context: ../..
+      dockerfile: infra/docker/python.Dockerfile
+      args:
+        PACKAGE: orchestrix-mcp-data
+    image: orchestrix-mcp-data:dev
+    command: ["python", "-m", "orchestrix_mcp_data"]
+    environment:
+      ORCHESTRIX_MCP_SERVICE_TOKEN: ${ORCHESTRIX_MCP_SERVICE_TOKEN}
+      ORCHESTRIX_READONLY_DATABASE_URL: postgresql://orchestrix_readonly:${ORCHESTRIX_READONLY_PASSWORD}@postgres:5432/orchestrix
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck: *mcp-health
+    mem_limit: 192m
+    restart: unless-stopped
+
+  mcp-files:
+    profiles: [core]
+    build:
+      context: ../..
+      dockerfile: infra/docker/python.Dockerfile
+      args:
+        PACKAGE: orchestrix-mcp-files
+    image: orchestrix-mcp-files:dev
+    command: ["python", "-m", "orchestrix_mcp_files"]
+    environment:
+      ORCHESTRIX_MCP_SERVICE_TOKEN: ${ORCHESTRIX_MCP_SERVICE_TOKEN}
+      ORCHESTRIX_DATABASE_URL: postgresql+psycopg://orchestrix_app:${ORCHESTRIX_APP_PASSWORD}@postgres:5432/orchestrix
+      ORCHESTRIX_S3_ENDPOINT: http://s3:9000
+      ORCHESTRIX_S3_ACCESS_KEY: ${S3_ROOT_USER}
+      ORCHESTRIX_S3_SECRET_KEY: ${S3_ROOT_PASSWORD}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck: *mcp-health
+    mem_limit: 256m
+    restart: unless-stopped
+
+  mcp-comms:
+    profiles: [core]
+    build:
+      context: ../..
+      dockerfile: infra/docker/python.Dockerfile
+      args:
+        PACKAGE: orchestrix-mcp-comms
+    image: orchestrix-mcp-comms:dev
+    command: ["python", "-m", "orchestrix_mcp_comms"]
+    environment:
+      ORCHESTRIX_MCP_SERVICE_TOKEN: ${ORCHESTRIX_MCP_SERVICE_TOKEN}
+      ORCHESTRIX_DATABASE_URL: postgresql+psycopg://orchestrix_app:${ORCHESTRIX_APP_PASSWORD}@postgres:5432/orchestrix
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck: *mcp-health
+    mem_limit: 192m
+    restart: unless-stopped
+
+  searxng:
+    profiles: [core]
+    image: searxng/searxng:2026.10.24-ef0ec03da
+    environment:
+      SEARXNG_SECRET: ${SEARXNG_SECRET}
+      SEARXNG_BASE_URL: http://127.0.0.1:58888/
+    volumes: [../searxng/settings.yml:/etc/searxng/settings.yml:ro]
+    ports: ["127.0.0.1:58888:8080"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    mem_limit: 384m
+    restart: unless-stopped
+
+  # --- observability profile (SPEC 21.2, M5) -----------------------------------------------------
+  # Copied from Langfuse's upstream docker-compose.yml (fetched 2026-11-07), versions pinned, and
+  # pointed at our Postgres 18 (`langfuse` DB), Redis (DB index 1) and S3 (`langfuse` bucket):
+  # plan improvement 7. Only ClickHouse is extra. The AI gateway service is left out (unused).
+
+  clickhouse:
+    profiles: [observability]
+    image: clickhouse/clickhouse-server:26.3.62.3
+    user: "101:101"
+    environment:
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - clickhouse-logs:/var/log/clickhouse-server
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    mem_limit: 1536m
+    restart: unless-stopped
+
+  langfuse-worker:
+    profiles: [observability]
+    image: langfuse/langfuse-worker:4.76.0
+    depends_on: &langfuse-depends
+      postgres:
+        condition: service_healthy
+      s3:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    environment: &langfuse-env
+      NEXTAUTH_URL: http://localhost:3100
+      DATABASE_URL: postgresql://langfuse:${LITELLM_DB_PASSWORD}@postgres:5432/langfuse
+      SALT: ${LANGFUSE_SALT}
+      ENCRYPTION_KEY: ${LANGFUSE_ENCRYPTION_KEY}
+      TELEMETRY_ENABLED: "false"
+      CLICKHOUSE_MIGRATION_URL: clickhouse://clickhouse:9000
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_CLUSTER_ENABLED: "false"
+      LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
+      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: ${S3_ROOT_USER}
+      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: ${S3_ROOT_PASSWORD}
+      LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://s3:9000
+      LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+      LANGFUSE_S3_EVENT_UPLOAD_PREFIX: events/
+      LANGFUSE_S3_MEDIA_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_MEDIA_UPLOAD_REGION: auto
+      LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID: ${S3_ROOT_USER}
+      LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY: ${S3_ROOT_PASSWORD}
+      LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: http://s3:9000
+      LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE: "true"
+      LANGFUSE_S3_MEDIA_UPLOAD_PREFIX: media/
+      # Our Redis (no password), its own DB index; already noeviction as Langfuse requires.
+      REDIS_CONNECTION_STRING: redis://redis:6379/1
+    mem_limit: 768m
+    restart: unless-stopped
+
+  langfuse-web:
+    profiles: [observability]
+    image: langfuse/langfuse:4.76.0
+    depends_on: *langfuse-depends
+    ports: ["127.0.0.1:3100:3000"]
+    environment:
+      <<: *langfuse-env
+      NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET}
+      LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: http://localhost:59000
+      LANGFUSE_S3_MEDIA_UPLOAD_INTERNAL_ENDPOINT: http://s3:9000
+      # Headless init: org, project and API keys the app uses (LANGFUSE_PUBLIC/SECRET_KEY).
+      LANGFUSE_INIT_ORG_ID: orchestrix
+      LANGFUSE_INIT_ORG_NAME: Orchestrix
+      LANGFUSE_INIT_PROJECT_ID: orchestrix
+      LANGFUSE_INIT_PROJECT_NAME: Orchestrix
+      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${LANGFUSE_INIT_PROJECT_PUBLIC_KEY}
+      LANGFUSE_INIT_PROJECT_SECRET_KEY: ${LANGFUSE_INIT_PROJECT_SECRET_KEY}
+      LANGFUSE_INIT_USER_EMAIL: ${LANGFUSE_INIT_USER_EMAIL}
+      LANGFUSE_INIT_USER_NAME: admin
+      LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_INIT_USER_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://$$(hostname -i):3000/api/public/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    mem_limit: 1g
+    restart: unless-stopped
+
+  prometheus:
+    profiles: [observability]
+    image: prom/prometheus:v3.16.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=15d
+    volumes:
+      - ../prometheus:/etc/prometheus:ro
+      - prometheus-data:/prometheus
+    ports: ["127.0.0.1:59090:9090"]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9090/-/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 256m
+    restart: unless-stopped
+
+  grafana:
+    profiles: [observability]
+    image: grafana/grafana:13.3.0
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+    volumes:
+      - ../grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports: ["127.0.0.1:3101:3000"]
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 256m
+    restart: unless-stopped
+
+  # --- auth profile (SPEC 21.2, M7) ----------------------------------------------------------------
+
+  keycloak:
+    profiles: [auth]
+    image: quay.io/keycloak/keycloak:26.8.2
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${LITELLM_DB_PASSWORD}  # initdb's default for the keycloak role
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_DEMO_PASSWORD: ${KC_DEMO_PASSWORD}  # substituted into the realm import
+      # Browsers and the API must agree on the issuer: tokens say http://localhost:8180, while
+      # containers fetch keys over the backchannel (http://keycloak:8080).
+      KC_HOSTNAME: http://localhost:8180
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HTTP_PORT: "8080"
+      KC_HEALTH_ENABLED: "true"
+      JAVA_OPTS_APPEND: -Xms128m -Xmx512m
+    volumes: [../keycloak:/opt/keycloak/data/import:ro]
+    ports: ["127.0.0.1:8180:8080"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      # The image has no curl or wget: probe the management port's readiness with bash.
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.0\r\n\r\n' >&3 && grep -q '\"UP\"' <&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    mem_limit: 768m
+    restart: unless-stopped
+
 networks:
+  sandbox:
+    internal: true  # no route out: only the worker shares this network with the sandbox
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
   default:
     # Fixed subnet: an auto-assigned 172.18.0.0/16 would swallow the Yotta VPN host 172.18.220.50
     # inside Docker Desktop (VPN route is 172.18.220.0/23).
@@ -233,3 +559,7 @@ volumes:
   pg-data:
   redis-data:
   s3-data:
+  clickhouse-data:
+  clickhouse-logs:
+  prometheus-data:
+  grafana-data:

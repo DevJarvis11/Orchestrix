@@ -109,6 +109,9 @@ class Task(Base):
     require_plan_approval: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=sa_text("false")
     )
+    require_final_approval: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=sa_text("false")
+    )  # FR-40 explicit user request: pause before delivery (user_requested_review)
     budget: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     model_overrides: Mapped[dict[str, Any]] = mapped_column(
         JSONB, nullable=False, server_default=sa_text("'{}'::jsonb")
@@ -136,12 +139,17 @@ class Run(Base):
     kind: Mapped[str] = mapped_column(Text, nullable=False)
     replay_of_run_id: Mapped[uuid.UUID | None] = _fk("runs.id", nullable=True)
     replay_from_checkpoint_id: Mapped[str | None] = mapped_column(Text)
+    replay_patch: Mapped[dict[str, Any] | None] = mapped_column(JSONB)  # SPEC 19.4 state_patch
+    replay_as_node: Mapped[str | None] = mapped_column(Text)
     status: Mapped[str] = mapped_column(Text, nullable=False)
     lease_owner: Mapped[str | None] = mapped_column(Text)
     lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     reclaim_count: Mapped[int] = mapped_column(
         Integer, nullable=False, server_default=sa_text("0")
     )  # crash-loop guard: reclaimed by the reaper this many times (SPEC 8.2 step 5)
+    active_seconds: Mapped[float] = mapped_column(
+        REAL, nullable=False, server_default=sa_text("0")
+    )  # FR-63: time spent executing, excluding human waits
     graph_version: Mapped[str] = mapped_column(Text, nullable=False)
     model_config_: Mapped[dict[str, Any] | None] = mapped_column(
         "model_config", JSONB
@@ -233,6 +241,11 @@ class LlmCall(Base):
     agent: Mapped[str] = mapped_column(Text, nullable=False)
     model_alias: Mapped[str] = mapped_column(Text, nullable=False)
     model_id: Mapped[str] = mapped_column(Text, nullable=False)  # the model that actually served
+    requested_model: Mapped[str | None] = mapped_column(Text)  # A6: what the role resolved to
+    purpose: Mapped[str | None] = mapped_column(Text)  # A6: plan, execute, review, ...
+    subtask_key: Mapped[str | None] = mapped_column(Text)  # A6
+    attempt: Mapped[int] = mapped_column(Integer, nullable=False, server_default=sa_text("0"))
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, server_default=sa_text("0"))
     input_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
     output_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
     cost_usd: Mapped[Decimal] = mapped_column(Numeric(12, 6), nullable=False)
@@ -351,6 +364,7 @@ class Artifact(Base):
     bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
     object_key: Mapped[str] = mapped_column(Text, nullable=False)
     sha256: Mapped[str] = mapped_column(Text, nullable=False)
+    uploaded_by: Mapped[uuid.UUID | None] = _fk("users.id", nullable=True)  # set for uploads
     created_at: Mapped[datetime] = _created_at()
 
 

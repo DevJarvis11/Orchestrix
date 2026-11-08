@@ -10,6 +10,7 @@ from orchestrix_agents.llm import strip_think, usage_of
 from orchestrix_agents.nodes._shared import STEP, require_plan
 from orchestrix_agents.prompting import render_prompt
 from orchestrix_agents.state import DONE_OK, RunState
+from orchestrix_core.schemas import CallTag
 
 
 async def synthesize(state: RunState, runtime: Runtime[RunContext]) -> dict[str, Any]:
@@ -31,7 +32,9 @@ async def synthesize(state: RunState, runtime: Runtime[RunContext]) -> dict[str,
         if final is not None and state.get("final_revisions", 0) > 0
         else "",
     )
-    message = await llm.chat("planner").ainvoke([HumanMessage(prompt)])
+    message = await llm.chat("planner", CallTag(agent="supervisor", purpose="synthesis")).ainvoke(
+        [HumanMessage(prompt)]
+    )
     content = message.content if isinstance(message.content, str) else str(message.content)
     return {
         "deliverable": strip_think(content),

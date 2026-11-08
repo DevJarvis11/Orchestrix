@@ -54,6 +54,8 @@ async def escalate(state: WorkerState, runtime: Runtime[RunContext]) -> dict[str
             subtask=subtask.key,
         )
     )
+    if decision.on_reject != "fail_task":  # paused as awaiting_human; back to running (FR-01)
+        await ctx.services.recorder.set_task_status(ctx.task_id, "running")
     record = EscalationRecord(
         trigger=trigger, level=level, subtask=subtask.key, resolution=decision.action
     )

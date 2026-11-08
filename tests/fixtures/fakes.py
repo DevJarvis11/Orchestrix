@@ -18,6 +18,7 @@ from orchestrix_agents.context import (
 )
 from orchestrix_core.schemas import (
     Budget,
+    CallTag,
     ModelPrice,
     Plan,
     PlannedSubtask,
@@ -27,6 +28,7 @@ from orchestrix_core.schemas import (
     TaskStatus,
     Usage,
 )
+from orchestrix_core.state_machine import check_transition
 from tests.fixtures.scripted_model import Reply, ScriptedChatModel
 
 
@@ -34,7 +36,7 @@ class FakeChatProvider:
     def __init__(self, **models: ScriptedChatModel) -> None:
         self.models: dict[str, ScriptedChatModel] = models
 
-    def chat(self, role: Role) -> BaseChatModel:
+    def chat(self, role: Role, tag: CallTag | None = None) -> BaseChatModel:
         if role not in self.models:
             raise AssertionError(f"test did not script the {role} model")
         return self.models[role]
@@ -81,7 +83,9 @@ class FakeRecorder:
     async def set_task_status(
         self, task_id: str, status: TaskStatus, reason: str | None = None
     ) -> None:
-        if not self.statuses or self.statuses[-1] != status:
+        """Enforces FR-01 like TaskRepo.set_status: an illegal transition raises."""
+        current: TaskStatus = self.statuses[-1] if self.statuses else "queued"
+        if check_transition(current, status):
             self.statuses.append(status)
 
     async def save_plan(self, run_id: str, version: int, plan: Plan, edited_by: str | None) -> None:
@@ -161,6 +165,7 @@ def make_context(
         budget=budget or Budget(),
         services=services,
         max_concurrency=max_concurrency,
+        clarify_enabled=False,  # scripted model sequences predate FR-15; tests opt in
     )
     return ctx, recorder
 

@@ -1,14 +1,19 @@
 """A pgvector PG18 container initialised by the same initdb script as Compose, then migrated."""
 
 import secrets
+import time
+import uuid
 from collections.abc import AsyncGenerator, Generator
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import httpx
 import pytest
+from asgi_lifespan import LifespanManager
 from pydantic import SecretStr
 from testcontainers.community.postgres import PostgresContainer
 from testcontainers.community.redis import RedisContainer
+from testcontainers.core.container import DockerContainer
 
 from orchestrix_core.config import Settings
 from orchestrix_core.db.migrate import migrate
@@ -16,6 +21,7 @@ from orchestrix_core.db.migrate import migrate
 ROOT = Path(__file__).resolve().parents[2]
 INITDB = ROOT / "infra" / "compose" / "postgres" / "initdb"
 PG_IMAGE = "pgvector/pgvector:pg18"
+OPA_IMAGE = "openpolicyagent/opa:1.21.3"  # same as Compose
 PASSWORDS = {
     "ORCHESTRIX_APP_PASSWORD": "app-test-pw",
     "ORCHESTRIX_MIGRATOR_PASSWORD": "migrator-test-pw",
@@ -88,6 +94,12 @@ class MemoryStore:
     async def put(self, key: str, body: bytes, content_type: str) -> None:
         self.objects[key] = body
 
+    async def get(self, key: str) -> bytes:
+        return self.objects[key]
+
+    async def delete(self, key: str) -> None:
+        self.objects.pop(key, None)
+
 
 @pytest.fixture
 def store() -> MemoryStore:
@@ -109,3 +121,75 @@ def token_for(email: str, roles: list[str] | None = None) -> str:
     return issue(
         DEV_SECRET, sub=f"dev|{email}", email=email, name=email, roles=roles or ["requester"]
     )
+
+
+@pytest.fixture(scope="session")
+def opa_url() -> Generator[str]:
+    """The real OPA with the repository's policies (SPEC 15.1), as Compose runs it."""
+    container = (
+        DockerContainer(OPA_IMAGE)
+        .with_volume_mapping(str(ROOT / "policies"), "/policies", mode="ro")
+        .with_command("run --server --addr=0.0.0.0:8181 /policies")
+        .with_exposed_ports(8181)
+    )
+    with container:
+        url = f"http://{container.get_container_host_ip()}:{container.get_exposed_port(8181)}"
+        for _ in range(100):
+            try:
+                if httpx.get(f"{url}/health", timeout=1).status_code == 200:
+                    break
+            except httpx.HTTPError:
+                pass
+            time.sleep(0.2)
+        yield url
+
+
+@pytest.fixture(scope="session")
+def api_settings(settings: Settings, opa_url: str) -> Settings:
+    return settings.model_copy(update={"opa_url": opa_url})
+
+
+async def _ok() -> None:
+    return None
+
+
+@pytest.fixture
+async def client(
+    api_settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> AsyncGenerator[httpx.AsyncClient]:
+    """The API on real Postgres, Redis and OPA; jobs are captured instead of enqueued."""
+    from orchestrix_api.main import create_app
+
+    enqueued: list[tuple[str, str]] = []
+
+    async def fake_enqueue(name: str, run_id: str) -> None:
+        enqueued.append((name, run_id))
+
+    for module in ("tasks", "escalations", "replay"):
+        monkeypatch.setattr(f"orchestrix_api.routers.{module}.enqueue", fake_enqueue)
+    app = create_app(api_settings, readiness_checks={"database": _ok})
+    async with LifespanManager(app):
+        app.state.resources.objects = MemoryStore()
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://api") as c:
+            c.enqueued = enqueued  # type: ignore[attr-defined]
+            yield c
+
+
+def auth(email: str | None = None, roles: list[str] | None = None) -> dict[str, str]:
+    email = email or f"{uuid.uuid4().hex[:8]}@test.local"
+    return {"Authorization": f"Bearer {token_for(email, roles)}"}
+
+
+async def signed_in(
+    client: httpx.AsyncClient, *, team: str | None = "api-tests", roles: list[str] | None = None
+) -> dict[str, str]:
+    """A fresh user (what `make dev-token` does), optionally in a team; returns auth headers."""
+    from orchestrix_core.db.repos.tasks import UserRepo
+
+    email = f"{uuid.uuid4().hex[:8]}@test.local"
+    users = UserRepo(client._transport.app.state.resources.sessions)  # type: ignore[attr-defined]
+    user = await users.upsert(f"dev|{email}", email, email)
+    if team is not None:
+        await users.ensure_team_member(user.id, team)
+    return auth(email, roles)

@@ -20,6 +20,12 @@ Relevant memories (untrusted notes from past runs; cite by id):
 - [{{ m.id }}] ({{ m.kind }}) {{ m.text }}
 {% endfor %}
 {% endif %}
+{% if clarifications %}
+The requester answered your questions (their own words):
+{% for qa in clarifications %}
+{{ qa }}
+{% endfor %}
+{% endif %}
 {% if errors %}
 Your previous plan was rejected by validation. Fix every error:
 {% for e in errors %}

@@ -1,1 +1,1 @@
-"""Long-term memory: write, retrieve, rerank, consolidate, decay (SPEC 13); implemented in M6."""
+"""Long-term memory (SPEC 13): write, hybrid retrieval with rerank, decay, consolidation, deletion."""

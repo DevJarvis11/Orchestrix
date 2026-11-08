@@ -7,7 +7,7 @@ from uuid import UUID
 from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from orchestrix_core.db.models import PlanRow, Run, SubtaskRow
+from orchestrix_core.db.models import PlanRow, ReviewRow, Run, SubtaskRow
 
 RunStatus = str  # queued|running|paused|completed|failed|cancelled
 
@@ -80,6 +80,14 @@ class RunRepo:
             )
             return [Reclaimed(r.id, r.reclaim_count) for r in rows]
 
+    async def add_active_seconds(self, run_id: UUID, seconds: float) -> None:
+        async with self._sessions.begin() as s:
+            await s.execute(
+                update(Run)
+                .where(Run.id == run_id)
+                .values(active_seconds=Run.active_seconds + max(0.0, seconds))
+            )
+
     async def set_status(self, run_id: UUID, status: RunStatus) -> None:
         terminal = status in ("completed", "failed", "cancelled")
         async with self._sessions.begin() as s:
@@ -107,6 +115,53 @@ class RunRepo:
             await s.execute(
                 update(Run).where(Run.id == run_id).values(head_checkpoint_id=checkpoint_id)
             )
+
+    async def create_replay(
+        self,
+        original: Run,
+        checkpoint_id: str,
+        patch: dict[str, Any] | None,
+        as_node: str | None,
+        graph_version: str,
+    ) -> Run:
+        """SPEC 19.4 step 2: a new run on the same thread, forking at `checkpoint_id`."""
+        async with self._sessions.begin() as s:
+            run = Run(
+                thread_id=original.thread_id,
+                task_id=original.task_id,
+                kind="replay",
+                replay_of_run_id=original.id,
+                replay_from_checkpoint_id=checkpoint_id,
+                replay_patch=patch,
+                replay_as_node=as_node,
+                status="queued",
+                graph_version=graph_version,
+                model_config_=original.model_config_,  # A3: replays pin the original models
+            )
+            s.add(run)
+            await s.flush()
+            return run
+
+    async def reviews(self, run_id: UUID) -> list[tuple[str | None, float]]:
+        """(subtask key or None for the final review, score), oldest first."""
+        async with self._sessions() as s:
+            rows = await s.execute(
+                select(SubtaskRow.key, ReviewRow.score)
+                .select_from(ReviewRow)
+                .outerjoin(SubtaskRow, SubtaskRow.id == ReviewRow.subtask_id)
+                .where(ReviewRow.run_id == run_id)
+                .order_by(ReviewRow.created_at)
+            )
+            return [(k, float(v)) for k, v in rows.all()]
+
+    async def replay_ids(self, task_id: UUID) -> list[UUID]:
+        async with self._sessions() as s:
+            rows = await s.execute(
+                select(Run.id)
+                .where(Run.task_id == task_id, Run.kind == "replay")
+                .order_by(Run.created_at)
+            )
+            return list(rows.scalars())
 
     async def for_task(self, task_id: UUID) -> Run | None:
         async with self._sessions() as s:

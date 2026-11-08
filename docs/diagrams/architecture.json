@@ -1,0 +1,352 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Orchestrix System Architecture",
+    "output": ".archify/architecture-orchestrix-20261108-095704/orchestrix-architecture.html",
+    "quality_profile": "showcase"
+  },
+  "components": [
+    {
+      "id": "web",
+      "type": "frontend",
+      "label": "Web App",
+      "sublabel": "React 19 SPA :5173",
+      "pos": [
+        40,
+        300
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "keycloak",
+      "type": "security",
+      "label": "Keycloak",
+      "sublabel": "OIDC + PKCE :8180",
+      "pos": [
+        330,
+        110
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "tag": "4 realm roles"
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "API",
+      "sublabel": "FastAPI :58100",
+      "pos": [
+        330,
+        300
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "tag": "RBAC + rate limits"
+    },
+    {
+      "id": "s3",
+      "type": "database",
+      "label": "Object Store",
+      "sublabel": "S3 / MinIO :59000",
+      "pos": [
+        330,
+        490
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "redis",
+      "type": "messagebus",
+      "label": "Redis",
+      "sublabel": "jobs + live events",
+      "pos": [
+        620,
+        300
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "postgres",
+      "type": "database",
+      "label": "PostgreSQL 18",
+      "sublabel": "state + checkpoints",
+      "pos": [
+        620,
+        490
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "tag": "pgvector memory"
+    },
+    {
+      "id": "opa",
+      "type": "security",
+      "label": "OPA",
+      "sublabel": "Rego policies",
+      "pos": [
+        910,
+        110
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "tag": "fail closed"
+    },
+    {
+      "id": "worker",
+      "type": "backend",
+      "label": "Worker",
+      "sublabel": "LangGraph run graph",
+      "pos": [
+        910,
+        300
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "tag": "Postgres run lease"
+    },
+    {
+      "id": "mcp",
+      "type": "backend",
+      "label": "MCP Tool Servers",
+      "sublabel": "web data files comms",
+      "pos": [
+        910,
+        490
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "tag": "+ isolated sandbox"
+    },
+    {
+      "id": "ollama",
+      "type": "external",
+      "label": "Host Ollama",
+      "sublabel": "optional fallback",
+      "pos": [
+        1200,
+        110
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "litellm",
+      "type": "cloud",
+      "label": "LiteLLM Proxy",
+      "sublabel": "model catalogue :54000",
+      "pos": [
+        1200,
+        300
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "yotta",
+      "type": "external",
+      "label": "Yotta Models",
+      "sublabel": "chat, embed, rerank",
+      "pos": [
+        1490,
+        300
+      ],
+      "size": [
+        160,
+        64
+      ],
+      "tag": "over VPN"
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Docker Compose stack (WSL host)",
+      "wraps": [
+        "keycloak",
+        "api",
+        "s3",
+        "redis",
+        "postgres",
+        "opa",
+        "worker",
+        "mcp",
+        "litellm"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "web-api",
+      "from": "web",
+      "to": "api",
+      "label": "HTTPS + SSE",
+      "variant": "emphasis"
+    },
+    {
+      "id": "api-redis",
+      "from": "api",
+      "to": "redis",
+      "label": "enqueue run",
+      "variant": "emphasis"
+    },
+    {
+      "id": "redis-worker",
+      "from": "redis",
+      "to": "worker",
+      "label": "job",
+      "variant": "emphasis"
+    },
+    {
+      "id": "worker-litellm",
+      "from": "worker",
+      "to": "litellm",
+      "label": "role \u2192 model",
+      "variant": "emphasis"
+    },
+    {
+      "id": "litellm-yotta",
+      "from": "litellm",
+      "to": "yotta",
+      "label": "inference only",
+      "variant": "security"
+    },
+    {
+      "id": "keycloak-api",
+      "from": "keycloak",
+      "to": "api",
+      "label": "JWKS",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "worker-opa",
+      "from": "worker",
+      "to": "opa",
+      "label": "tool policy",
+      "variant": "security",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "litellm-ollama",
+      "from": "litellm",
+      "to": "ollama",
+      "label": "fallback",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "api-s3",
+      "from": "api",
+      "to": "s3",
+      "label": "uploads",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "api-postgres",
+      "from": "api",
+      "to": "postgres",
+      "label": "tasks",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          550,
+          332
+        ],
+        [
+          550,
+          522
+        ]
+      ]
+    },
+    {
+      "id": "worker-postgres",
+      "from": "worker",
+      "to": "postgres",
+      "label": "checkpoints",
+      "fromSide": "left",
+      "toSide": "right",
+      "via": [
+        [
+          850,
+          332
+        ],
+        [
+          850,
+          522
+        ]
+      ]
+    },
+    {
+      "id": "worker-mcp",
+      "from": "worker",
+      "to": "mcp",
+      "label": "MCP + token",
+      "fromSide": "bottom",
+      "toSide": "top"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Request path",
+      "items": [
+        "The API writes the task, enqueues the run, and streams events over SSE",
+        "Any worker can resume any run from its Postgres checkpoint"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Safety",
+      "items": [
+        "OPA checks every tool call; sensitive tools pause for human approval",
+        "The sandbox has no network and no storage credentials"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Model-agnostic",
+      "items": [
+        "Agents ask for a role; ORCHESTRIX_DEFAULT_MODELS maps it to a catalogue model",
+        "Ollama fallback is off when ORCHESTRIX_LOCAL_FALLBACK=false"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Observability",
+      "items": [
+        "Langfuse traces, Prometheus metrics and Grafana dashboards (obs profile)"
+      ]
+    }
+  ]
+}

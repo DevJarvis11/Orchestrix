@@ -10,7 +10,7 @@ from orchestrix_agents.llm import invoke_structured
 from orchestrix_agents.nodes._shared import STEP, emit
 from orchestrix_agents.prompting import render_prompt
 from orchestrix_agents.state import WorkerState
-from orchestrix_core.schemas import Review
+from orchestrix_core.schemas import CallTag, Review
 from orchestrix_core.schemas.events import ReviewEvent, SubtaskEvent
 
 MAX_REVISIONS = 2
@@ -25,7 +25,19 @@ async def review_subtask(state: WorkerState, runtime: Runtime[RunContext]) -> di
         raise ValueError(f"review of {subtask.key} reached without a result")
     prompt = render_prompt("reviewer.j2", subtask=subtask, result=result)
     structured = await invoke_structured(
-        llm.chat("reviewer"), Review, [HumanMessage(prompt)], price=llm.price("reviewer")
+        llm.chat(
+            "reviewer",
+            CallTag(
+                agent="reviewer",
+                purpose="review",
+                subtask_key=subtask.key,
+                attempt=state.get("attempts", 0),
+                revision=state.get("revisions", 0),
+            ),
+        ),
+        Review,
+        [HumanMessage(prompt)],
+        price=llm.price("reviewer"),
     )
     review = structured.value
     history = [*state.get("reviews", {}).get(subtask.key, []), review]
@@ -44,6 +56,7 @@ async def review_subtask(state: WorkerState, runtime: Runtime[RunContext]) -> di
             subtask=subtask.key,
             verdict=review.verdict,
             score=review.score,
+            specialist=subtask.specialist,
         ),
     )
     update: dict[str, Any] = {

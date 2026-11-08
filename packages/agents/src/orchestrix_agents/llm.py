@@ -14,16 +14,24 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, SecretStr, ValidationError
 
-from orchestrix_core.schemas import ModelPrice, Role, Usage
+from orchestrix_core.schemas import Agent, CallTag, ModelPrice, Role, Usage
 
 ROLES: Final[tuple[Role, ...]] = ("planner", "specialist", "reviewer", "fast")
 
-# gpt-oss reasoning depth per role (A2). Other families ignore it.
+# Reasoning depth per role (A2). Sent to every model: the gateway drops it for models that do
+# not support it (`drop_params`), so the app never branches on a model family.
 REASONING_EFFORT: Final[dict[Role, str]] = {
     "planner": "medium",
     "reviewer": "medium",
     "specialist": "low",
     "fast": "low",
+}
+
+DEFAULT_AGENT: Final[dict[Role, Agent]] = {
+    "planner": "supervisor",
+    "specialist": "research",
+    "reviewer": "reviewer",
+    "fast": "memory_writer",
 }
 
 _THINK_RE: Final = re.compile(r"<think>.*?</think>", re.DOTALL)
@@ -49,13 +57,33 @@ def strip_think(text: str) -> str:
     return _THINK_RE.sub("", text).strip()
 
 
+COST_HEADER: Final = "x-litellm-response-cost"
+# Longer than the gateway's worst case (infra/litellm/config.yaml: timeout 180 s, num_retries 1),
+# so a slow first attempt is retried by the gateway instead of failing the run client-side.
+GATEWAY_TIMEOUT: Final = 420.0
+
+
+def response_cost(message: BaseMessage) -> float | None:
+    """The gateway's cost for this call, priced from the model's catalogue entry (SPEC 15.3)."""
+    metadata: dict[str, Any] = dict(getattr(message, "response_metadata", None) or {})
+    headers: dict[str, Any] = dict(metadata.get("headers") or {})
+    raw = headers.get(COST_HEADER)
+    try:
+        return float(raw) if raw not in (None, "", "None") else None
+    except (TypeError, ValueError):
+        return None
+
+
 def usage_of(message: BaseMessage, price: ModelPrice | None) -> Usage:
+    """Tokens from the message; cost from the gateway, else from an optional price override."""
     meta: dict[str, Any] = dict(getattr(message, "usage_metadata", None) or {})
     tokens_in = int(meta.get("input_tokens", 0))
     tokens_out = int(meta.get("output_tokens", 0))
-    usd = 0.0
-    if price is not None:
-        usd = (tokens_in * price.input_per_mtok + tokens_out * price.output_per_mtok) / 1_000_000
+    usd = response_cost(message)
+    if usd is None:
+        usd = 0.0
+        if price is not None:
+            usd = (tokens_in * price.input_per_mtok + tokens_out * price.output_per_mtok) / 1e6
     return Usage(input_tokens=tokens_in, output_tokens=tokens_out, usd=round(usd, 6))
 
 
@@ -77,13 +105,21 @@ class GatewayChatProvider:
         api_key: SecretStr,
         models: Mapping[Role, str],
         prices: Mapping[str, ModelPrice],
-        timeout: float = 120,
+        timeout: float = GATEWAY_TIMEOUT,
+        run_id: str = "",
+        sink: Any = None,  # orchestrix_agents.context.LlmCallSink
+        team: str = "",
+        local_fallback: bool = True,
     ) -> None:
+        self._team = team
+        self._local_fallback = local_fallback
         self._base_url = base_url.rstrip("/") + "/v1"
         self._api_key = api_key
         self._models = dict(models)
         self._prices = dict(prices)
         self._timeout = timeout
+        self._run_id = run_id
+        self._sink = sink
 
     def model_name(self, role: Role) -> str:
         return self._models[role]
@@ -91,13 +127,25 @@ class GatewayChatProvider:
     def price(self, role: Role) -> ModelPrice | None:
         return self._prices.get(self._models[role])
 
-    def chat(self, role: Role) -> BaseChatModel:
+    def chat(self, role: Role, tag: CallTag | None = None) -> BaseChatModel:
+        from orchestrix_agents.accounting import LlmCallRecorder
+
         model = self._models[role]
-        kwargs: dict[str, Any] = {}
-        if model.startswith("gpt-oss"):
-            kwargs["reasoning_effort"] = REASONING_EFFORT[role]
+        tag = tag or CallTag(agent=DEFAULT_AGENT[role], purpose="chat")
+        recorder = LlmCallRecorder(
+            sink=self._sink,
+            run_id=self._run_id,
+            role=role,
+            requested_model=model,
+            tag=tag,
+            prices=self._prices,
+            team=self._team,
+        )
+        kwargs: dict[str, Any] = {"reasoning_effort": REASONING_EFFORT[role]}
         if role == "reviewer":
             kwargs["temperature"] = 0
+        if not self._local_fallback:
+            kwargs["extra_body"] = {"disable_fallbacks": True}  # LiteLLM: no local fallback
         # Retries belong to the gateway (SPEC 16.3): never stack client retries on top.
         return ChatOpenAI(
             model=model,
@@ -106,6 +154,8 @@ class GatewayChatProvider:
             timeout=self._timeout,
             max_retries=0,
             include_response_headers=True,
+            callbacks=[recorder],
+            metadata={"orchestrix_role": role, **tag.model_dump()},
             **kwargs,
         )
 
@@ -166,10 +216,16 @@ async def _call_structured[T: BaseModel](
     except NotImplementedError:
         raise
     except Exception as exc:  # provider rejected json_schema mode: fall back (SPEC 16.3)
-        if not _is_schema_rejection(exc):
+        # Some OpenAI-compatible providers accept response_format but return plain text.  Their
+        # LangChain parser raises Pydantic ValidationError before exposing ``raw``; this is the
+        # same compatibility case as an explicit json_schema rejection, so use function calling.
+        if not (_is_schema_rejection(exc) or isinstance(exc, ValidationError)):
             raise
         runnable = model.with_structured_output(schema, method="function_calling", include_raw=True)
-        out = await runnable.ainvoke(list(messages))
+        try:
+            out = await runnable.ainvoke(list(messages))
+        except ValidationError as fallback_exc:
+            return None, None, str(fallback_exc)
     raw: AIMessage | None = out.get("raw")
     parsed = out.get("parsed")
     if isinstance(parsed, schema):

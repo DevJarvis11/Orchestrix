@@ -9,16 +9,20 @@ The running record of milestone status, resolved versions, decisions and deviati
 | M0 Bootstrap | Done | c7bc0aa | 2026-10-22: tool images pulled. Ollama is reached at the WSL IP (the Makefile derives it). The VPN subnet clash is fixed (the Kong network moved to 172.30.0.0/16). |
 | M1 Foundation | Done | a906f0a | 2026-10-25: pushed to GitHub (rebased onto the repo's initial MIT LICENSE commit). |
 | M2 Graph core | Done | (this commit) | 2026-10-25: 25 graph route tests (0.8 s), the create_agent interrupt spike, 24 integration tests, the fake-model API stream e2e, and the SIGKILL resilience test (NFR-01) all pass. |
-| M3 MCP and specialists | Not started | — | |
-| M4 HITL and policy | Not started | — | |
-| M5 Observability and cost | Not started | — | |
-| M6 Long-term memory | Not started | — | |
-| M7 Frontend and auth | Not started | — | |
-| M8 Replay, evals, demo | Not started | — | |
+| M3 MCP and specialists | Done | (this commit) | 2026-11-08: showcase 5.6 completed live on gpt-oss-120b (VPN only, 646 s, 4/4 subtasks approved, memory written; email step not reached); sandbox isolation, credential isolation and time limit proven live; injection pages flagged. |
+| M4 HITL and policy | Done (live email journey pending) | (this commit) | 17 Rego tests; four-eyes, 409, fail-closed and decision tests on a real OPA; live clarify, review and policy pauses resumed by a second user. |
+| M5 Observability and cost | Code complete | (this commit) | Gateway cost header recorded per call; efficiency, costs and trace endpoints tested. Not yet run: observability profile live, the ±5% cost match, a budget-capped live run. |
+| M6 Long-term memory | Done (eval pending) | (this commit) | Seeded lesson embedded (2560-d); 3 memories written by the live run; deletion cascade and FR-56 validation tested. |
+| M7 Frontend and auth | Code complete | (this commit) | Ten screens; lint, typecheck, Vitest and build pass. Not yet run: Playwright journeys 5.1-5.5, Keycloak login in a browser. |
+| M8 Replay, evals, demo | Code complete | (this commit) | Replay API tested; 5 eval datasets + harness; resilience test passes; scan and gitleaks clean. Not yet run: eval smoke, `make demo` offline. |
 
 ## Next action
 
-Start M3 (MCP tools and real specialists): SPEC 12, 15.2, 15.3, 16, plus amendment A1/A2 model routing. Replace `StubSpecialistRunner` with `create_agent` specialists. The spike `tests/graph/test_spike_agent_interrupt.py` already proves the interrupt/resume pattern they rely on.
+2026-11-08: M3-M8 committed together (they were written and integration-tested as one change set). `make ci`, `make test-stack` and `make test-resilience` pass; the showcase completed live on gpt-oss-120b.
+
+Remaining live verification: Playwright journeys 5.1-5.5 (to write), the observability profile with the ±5% cost check, the email-approval journey live, Keycloak login in a browser, `make eval-smoke` (needs the VPN, about 1-2 h of model calls: ask the user first), `make demo` offline (needs recorded fetch fixtures: `make record-fixtures`).
+
+Open items carried over: the 1-year audit-log retention needs the migrator role.
 
 ## Environment facts (from the 2026-10-21 prerequisite check)
 
@@ -133,6 +137,42 @@ Resolved 2026-10-22. `uv.lock` and `pnpm-lock.yaml` are authoritative.
   - `langgraph` is a namespace package, so pyright ignores its `py.typed` for `langgraph.graph`. `graph.py` and `subgraph.py` carry file-level relaxations for three reportUnknown/MissingTypeStubs rules.
   - The root dev group depends on every workspace member, so `uv run` never un-installs them.
 - 2026-10-25: **Admin model defaults.** The `model_defaults` table is not read yet: role resolution uses task override, then settings default. The admin defaults API arrives in M4 (A4).
+
+- 2026-11-01: **Amendment A6** (per-run efficiency breakdown) approved by the user. It is built in M5 (extra `llm_calls` columns plus an efficiency endpoint) and shown in M7. Automatic token optimisation is out of scope until the evals show where the waste is.
+- 2026-11-01: **`mcp` is pinned to 1.30.0**, not 2.3.0: `langchain-mcp-adapters` 0.3.2 requires `mcp<2`, and the workspace has one lockfile.
+
+- 2026-11-07: **Build all, then test (user's decision).** The remaining milestones (M3–M8) are written back to back; tests for each module, `make ci` and the Done-when checks run in one integration pass at the end. Nothing is committed or pushed until that pass is green. ruff and pyright are kept clean as code lands. This overrides, for this stretch, CLAUDE.md's "tests in the same commit" and "finish, test, commit one milestone before the next".
+- 2026-11-07: **The VPN is on request.** The user turns the Yotta VPN on when asked; VPN-dependent checks are batched.
+- 2026-11-07: **Sandbox has no storage access (security fix).** Untrusted code could read the sandbox server's environment through `/proc/1/environ` (same uid), which held the S3 root keys, and S3 was on the sandbox network. Now:
+  - `run_python` takes `input_files` (bytes) and returns `created_files`. The worker's `SandboxFiles` MCP interceptor resolves the model's `artifact_ids` with a run-scope check (`SqlArtifactBridge`), stores created files under deterministic ids, and registers them. `input_files` is hidden from the model's schema.
+  - mcp-sandbox has no S3 env and S3 left the `sandbox` network. The server also sets `PR_SET_DUMPABLE=0`.
+- 2026-11-07: **Specialist middleware order:** Budget (before_model), then ToolCallLimit, InjectionGuard, ToolAccounting, Policy, ToolRetry, tool. Accounting sits outside Policy so a call that already ran is answered from its row and never asks a human twice. Policy is the real OPA check (not a stub). FR-24 retry is our own middleware: MCP errors arrive as error ToolMessages, which the built-in ToolRetryMiddleware (exceptions only) never sees. Specialist time limits (SPEC 12.1) use `asyncio.timeout`; a human pause stops the clock.
+- 2026-11-07: **Budget estimate** before a model call is chars/3.5 plus per-message overhead, not the gateway's token counter (one fewer round-trip per call; it over-estimates). A human-raised budget is stored in the agent's state (`orchestrix_budget`) and merged into RunState with an elementwise-max reducer. Active time for the FR-63 time cap is `runs.active_seconds` (migration 0004), accumulated per lease.
+- 2026-11-07: **Graph changes (idempotent resume, SPEC 11.6):**
+  - `final_review` (model call) and `final_gate` (human decisions: low_review_score, user_requested_review) are separate nodes. Before, a resume re-ran the reviewer model ahead of the interrupt and could drop the human's answer.
+  - FR-15 clarify: the plan node asks a `Clarity` question once; a new `clarify` node pauses (level clarify, action answer). Answers are kept as `clarifications`, the requester's own words for FR-56. `ORCHESTRIX_CLARIFY_ENABLED` turns it off.
+  - FR-40 "explicit user request": `tasks.require_final_approval` (migration 0004).
+  - Plan-cited memories are marked used in `write_memory`, once per run.
+- 2026-11-07: **Accounting (A6):** `llm_calls` gains requested_model, purpose, subtask_key, attempt and revision (migration 0004). An `LlmCallRecorder` callback is attached to every gateway chat model, with a `CallTag`. Cost comes from LiteLLM's `x-litellm-response-cost` header, else the price table.
+- 2026-11-07: **Policy:** `policies/tool.rego` and `escalation.rego` as in SPEC 15.1, plus "unknown tool" denied. OPA keeps the registry in memory, so the gate re-pushes it once if a catalogued tool comes back unknown (OPA restarted). Denials are audited without argument values. Trigger-to-level mapping and SLA timings live in `orchestrix_policy/escalation_policy.yaml`.
+- 2026-11-07: **Observability:** Langfuse SDK 5.2 (OTel-native) with our tracer provider and a PII `mask`. The trace id is derived from the run id, so resumes join one trace. Tracing is opt-in in Compose (`make obs`, `make dev-full`). The observability profile copies Langfuse's upstream compose (fetched 2026-11-07, v4) pinned to langfuse 4.76.0, clickhouse 26.3.62.3, prometheus v3.16.0 and grafana 13.3.0, pointed at our Postgres (`langfuse` DB), Redis DB 1 and the `langfuse` bucket. The AI-gateway service is omitted. `make env` now appends missing keys to an existing `.env`.
+- 2026-11-07: **Memory retrieval deviation:** the keyword arm ORs the task's lexemes (`websearch_to_tsquery` ANDs every word of a long task and rarely matches). Local rerank uses fastembed `BAAI/bge-reranker-base`, with logits put through a sigmoid.
+
+- 2026-11-08: **Model-agnostic by configuration (user's requirement).** No code names a model or a model family:
+  - `ORCHESTRIX_DEFAULT_MODELS` (role -> catalogue model) in `.env` is the one switch; admin defaults and per-task overrides still win (A2).
+  - Prices moved into `infra/litellm/config.yaml` (`input_cost_per_token`); the gateway's `x-litellm-response-cost` header is the cost source. `settings.model_prices` is only an override.
+  - Per-role `reasoning_effort` is sent to every model; LiteLLM `drop_params: true` drops it where unsupported.
+  - `gateway-check` discovers models from the proxy's `/model/info`; the showcase, demo and eval targets default to the configured models.
+  - `env_ignore_empty=True` in Settings, so a Compose variable left empty means "use the default".
+- 2026-11-08: **VPN models only (user's instruction).** `ORCHESTRIX_LOCAL_FALLBACK=false` sends `disable_fallbacks` to LiteLLM, drops the local reranker fallback and skips local probes. Over the VPN only model inference calls are made.
+- 2026-11-08: **Live-run fixes (gpt-oss-120b showcase):**
+  - The gateway benched the only VPN model for 5 minutes after one 120 s timeout, failing every later call with 429. Timeouts no longer trigger cooldown; the deployment timeout is 180 s, and the client waits `GATEWAY_TIMEOUT` = 420 s (longer than 180 s x 2 attempts).
+  - A specialist that ends in prose instead of the structured-output tool gets one more structured call (`invoke_structured`) over a compact transcript.
+  - The branch head is saved as each root checkpoint is written, so a reclaimed run resumes from its latest step.
+  - After a human decision, clarify, escalate and final_gate set the task back to their phase (planning, running, reviewing). Before, `awaiting_human -> completed` raised at the very end. The graph-test recorder now enforces FR-01 and the harness applies the worker's pause status, so this class of bug fails in tests.
+- 2026-11-08: **Code review fixes:** files.read_artifact refuses unknown runs (was `task_id IS NULL`); sandbox drains pipes for at most 5 s after a kill; audit rows record the human-edited arguments that ran; attachment names must be unique per task; team sync reads first and inserts with ON CONFLICT; the API rate limit runs before any database write; escalation visibility follows the assigned team; `web.fetch` connects to the checked IP with the real Host header and SNI (DNS-rebinding window closed); the trace endpoint lists every model call exactly once.
+- 2026-11-08: **Structure:** one S3 store (`orchestrix_core.storage.S3ObjectStore`, `artifact_key`) replaces the duplicate in `orchestrix_tools.objects`; `GatewayEmbedder.from_settings`; dead `lease.py` and the unused `ollama_base_url` setting removed; shared API test fixtures and a real OPA container live in `tests/integration/conftest.py`; `record_fixtures.py` drives mcp-web's own record mode (searches and fetched pages).
+- 2026-11-08: **Diagrams:** four Archify diagrams (architecture, run graph, approval sequence, task lifecycle) in `docs/diagrams/`, each passing validate, deliver, check and the real-browser gate. They are authored from the code without pinned source links (the work was uncommitted when they were drawn).
 
 ## Open items for the user
 

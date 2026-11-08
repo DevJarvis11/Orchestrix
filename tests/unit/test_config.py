@@ -1,11 +1,15 @@
 """Settings loading (SPEC 21.1) and the model-routing defaults (amendment A2)."""
 
+from pathlib import Path
+
 import pytest
+import yaml
 from pydantic import ValidationError
 
 from orchestrix_core.config import Settings, libpq_dsn
 from orchestrix_core.schemas import Budget
 
+ROOT = Path(__file__).parents[2]
 DSN = "postgresql+psycopg://orchestrix_app:pw@postgres:5432/orchestrix"
 
 
@@ -53,11 +57,9 @@ def test_prefixed_variables(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_unprefixed_aliases(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
     monkeypatch.setenv("LANGFUSE_HOST", "http://langfuse-web:3000")
     monkeypatch.setenv("TAVILY_API_KEY", "tvly-test")
     s = load()
-    assert s.ollama_base_url == "http://host.docker.internal:11434"
     assert s.langfuse_host == "http://langfuse-web:3000"
     assert s.tavily_api_key is not None
     assert s.tavily_api_key.get_secret_value() == "tvly-test"
@@ -128,9 +130,20 @@ def test_default_models_reject_unknown_role(monkeypatch: pytest.MonkeyPatch) -> 
         load()
 
 
-def test_notional_prices_cover_catalogue_models() -> None:
-    prices = load().model_prices
-    assert {"gpt-oss-120b", "qwen3-8b-local", "embed", "rerank"} <= prices.keys()
+def test_every_catalogue_model_is_priced_in_the_gateway() -> None:
+    """SPEC 15.3, improvement 8: prices live with each model in infra/litellm/config.yaml."""
+    config = yaml.safe_load((ROOT / "infra" / "litellm" / "config.yaml").read_text())
+    for entry in config["model_list"]:
+        if entry["model_name"] == "fallback-probe":
+            continue
+        assert "input_cost_per_token" in entry["model_info"], entry["model_name"]
+
+
+def test_one_switch_changes_a_role_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ORCHESTRIX_DEFAULT_MODELS", '{"reviewer": "any-catalogue-model"}')
+    models = load().default_models
+    assert models["reviewer"] == "any-catalogue-model"
+    assert models["planner"] != "any-catalogue-model"  # other roles keep their default
 
 
 def test_fake_models_refused_in_production(monkeypatch: pytest.MonkeyPatch) -> None:

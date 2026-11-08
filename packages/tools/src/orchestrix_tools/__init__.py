@@ -1,1 +1,1 @@
-"""MCP client registry, allow-lists and tool metadata (SPEC 12.3); implemented in M3."""
+"""MCP tool conventions, catalogue and client registry (SPEC 12.3, 12.4)."""

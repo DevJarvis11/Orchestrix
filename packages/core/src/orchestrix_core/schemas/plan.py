@@ -30,6 +30,13 @@ class Plan(BaseModel):
     estimated_cost_usd: float = Field(ge=0)
 
 
+class Clarity(BaseModel):
+    """FR-15: does the supervisor need answers before it can plan? At most 3 questions."""
+
+    ambiguous: bool
+    questions: list[str] = Field(default=[], max_length=3)
+
+
 class SubtaskResult(BaseModel):
     key: str
     output: str  # markdown, JSON text or code

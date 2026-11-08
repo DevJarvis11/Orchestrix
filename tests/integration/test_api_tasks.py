@@ -3,56 +3,14 @@
 import asyncio
 import json
 import uuid
-from collections.abc import AsyncGenerator
 from typing import Any
 
 import httpx
 import pytest
-from asgi_lifespan import LifespanManager
 
-from orchestrix_api.main import create_app
-from orchestrix_core.config import Settings
-from tests.integration.conftest import token_for
+from tests.integration.conftest import signed_in
 
 pytestmark = pytest.mark.integration
-
-
-async def _ok() -> None:
-    return None
-
-
-@pytest.fixture
-async def client(
-    settings: Settings, monkeypatch: pytest.MonkeyPatch
-) -> AsyncGenerator[httpx.AsyncClient]:
-    enqueued: list[tuple[str, str]] = []
-
-    async def fake_enqueue(name: str, run_id: str) -> None:
-        enqueued.append((name, run_id))
-
-    monkeypatch.setattr("orchestrix_api.routers.tasks.enqueue", fake_enqueue)
-    app = create_app(settings, readiness_checks={"database": _ok})
-    async with LifespanManager(app):
-        transport = httpx.ASGITransport(app=app)
-        async with httpx.AsyncClient(transport=transport, base_url="http://api") as c:
-            c.enqueued = enqueued  # type: ignore[attr-defined]
-            yield c
-
-
-def auth(email: str | None = None) -> dict[str, str]:
-    return {"Authorization": f"Bearer {token_for(email or f'{uuid.uuid4().hex[:8]}@test.local')}"}
-
-
-async def signed_in(client: httpx.AsyncClient, *, team: str | None = "api-tests") -> dict[str, str]:
-    """A fresh user (what `make dev-token` does), optionally in a team; returns auth headers."""
-    from orchestrix_core.db.repos.tasks import UserRepo
-
-    email = f"{uuid.uuid4().hex[:8]}@test.local"
-    users = UserRepo(client._transport.app.state.resources.sessions)  # type: ignore[attr-defined]
-    user = await users.upsert(f"dev|{email}", email, email)
-    if team is not None:
-        await users.ensure_team_member(user.id, team)
-    return auth(email)
 
 
 TASK = {"title": "Latency report", "description": "Summarise p95 latency."}
@@ -102,8 +60,10 @@ async def test_auth_required_and_tasks_are_private(client: httpx.AsyncClient) ->
     assert (await client.post("/v1/tasks", json=TASK)).status_code == 401
     owner = await signed_in(client)
     task_id = (await client.post("/v1/tasks", json=TASK, headers=owner)).json()["task_id"]
-    teammate = await signed_in(client)  # same team: may read team tasks
-    assert (await client.get(f"/v1/tasks/{task_id}", headers=teammate)).status_code == 200
+    teammate = await signed_in(client)  # same team, requester only: may not (SPEC 2)
+    assert (await client.get(f"/v1/tasks/{task_id}", headers=teammate)).status_code == 404
+    reviewer = await signed_in(client, roles=["requester", "reviewer"])  # team reviewer: may
+    assert (await client.get(f"/v1/tasks/{task_id}", headers=reviewer)).status_code == 200
     stranger = await signed_in(client, team="another-team")
     assert (await client.get(f"/v1/tasks/{task_id}", headers=stranger)).status_code == 404
     bad = {"Authorization": "Bearer not-a-jwt"}
@@ -173,3 +133,57 @@ async def test_fr06_sse_replays_then_streams_live_and_dedupes(client: httpx.Asyn
     ids = [e["id"] for e in events]
     assert ids == sorted(set(ids))  # no duplicates, in order
     assert all(e["data"]["run_id"] == run_id for e in events)
+
+
+async def upload(
+    client: httpx.AsyncClient, headers: dict[str, str], name: str, body: bytes
+) -> httpx.Response:
+    return await client.post(
+        "/v1/uploads", files={"file": (name, body, "application/octet-stream")}, headers=headers
+    )
+
+
+async def test_fr02_upload_sniffs_type_and_attaches_to_task(client: httpx.AsyncClient) -> None:
+    headers = await signed_in(client)
+    r = await upload(client, headers, "latency.csv", b"region,ms\neu,12\n")
+    assert r.status_code == 201
+    assert r.json()["mime"] == "text/csv"
+    artifact_id = r.json()["artifact_id"]
+
+    created = await client.post(
+        "/v1/tasks", json=TASK | {"attachments": [artifact_id]}, headers=headers
+    )
+    assert created.status_code == 202
+    again = await client.post(
+        "/v1/tasks", json=TASK | {"attachments": [artifact_id]}, headers=headers
+    )
+    assert again.status_code == 422  # already attached
+
+
+@pytest.mark.parametrize(
+    ("name", "body"),
+    [
+        ("evil.pdf", b"MZ\x90\x00 not a pdf"),
+        ("photo.png", b"\x89PNG\r\n"),
+        ("notes.txt", b"\xff\xfe\x00bad"),
+    ],
+)
+async def test_fr02_upload_rejects_unsupported_content(
+    client: httpx.AsyncClient, name: str, body: bytes
+) -> None:
+    r = await upload(client, await signed_in(client), name, body)
+    assert r.status_code == 415
+    assert r.headers["content-type"] == "application/problem+json"
+
+
+async def test_fr02_upload_size_limit(client: httpx.AsyncClient) -> None:
+    r = await upload(client, await signed_in(client), "big.txt", b"a" * (10 * 1024 * 1024 + 1))
+    assert r.status_code == 413
+
+
+async def test_fr02_cannot_attach_someone_elses_upload(client: httpx.AsyncClient) -> None:
+    owner = await signed_in(client)
+    artifact_id = (await upload(client, owner, "x.md", b"# hi")).json()["artifact_id"]
+    thief = await signed_in(client)
+    r = await client.post("/v1/tasks", json=TASK | {"attachments": [artifact_id]}, headers=thief)
+    assert r.status_code == 422

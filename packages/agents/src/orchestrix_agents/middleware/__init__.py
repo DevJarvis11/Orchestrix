@@ -1,1 +1,1 @@
-"""Budget, policy, injection-guard and tracing middleware; implemented in M3-M5."""
+"""Specialist middleware: budget, policy, injection guard, accounting and retry (SPEC 12.2, 15)."""

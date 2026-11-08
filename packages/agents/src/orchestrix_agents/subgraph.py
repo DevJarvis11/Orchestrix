@@ -19,7 +19,7 @@ def build_subtask_graph() -> CompiledStateGraph[WorkerState, RunContext, WorkerS
     g.add_node("review", review_subtask)
     g.add_node("escalate", escalate)
     g.add_edge(START, "execute")
-    g.add_conditional_edges("execute", route_after_execute, ["execute", "review", "escalate"])
+    g.add_conditional_edges("execute", route_after_execute, ["execute", "review", "escalate", END])
     g.add_conditional_edges("review", route_after_review, ["execute", "escalate", END])
     g.add_conditional_edges("escalate", route_after_escalate, ["execute", END])
     return g.compile()  # inherits the parent's checkpointer

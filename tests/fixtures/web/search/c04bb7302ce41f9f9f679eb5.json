@@ -1,0 +1,45 @@
+{
+  "query": "weaviate license github benchmarks",
+  "results": [
+    {
+      "snippet": "This repo contains a tool for benchmarking Weaviate performance. Documentation for benchmarker. results and context can be found in the Weaviate\u00a0...",
+      "title": "GitHub - weaviate/weaviate-benchmarking: Tools for various ...",
+      "url": "https://github.com/weaviate/weaviate-benchmarking"
+    },
+    {
+      "snippet": "A tool for benchmarking retrieval and question answering systems. Built for Weaviate's Query Agent, but designed to evaluate any system you can plug in.",
+      "title": "GitHub - weaviate/query-agent-benchmarking: Tools for various ...",
+      "url": "https://github.com/weaviate/query-agent-benchmarking"
+    },
+    {
+      "snippet": "30 Sept 2026 ... A Visual Document Benchmark for Scientific Retrieval and Question Answering - weaviate/IRPAPERS. ... LICENSE \u00b7 LICENSE \u00b7 Initial commit. 9 months\u00a0...",
+      "title": "GitHub - weaviate/IRPAPERS: A Visual Document Benchmark for ...",
+      "url": "https://github.com/weaviate/IRPAPERS"
+    },
+    {
+      "snippet": "A Python composite GitHub Action that parses JUnit XML reports from CI jobs and ingests them into Weaviate \u2014 plus a static Next.js dashboard for browsing\u00a0...",
+      "title": "weaviate-test-reporter - GitHub",
+      "url": "https://github.com/weaviate/weaviate-test-reporter"
+    },
+    {
+      "snippet": "This package is not in the latest version of its module. Go to latest Published: Sep 11, 2026 License: UNKNOWN not legal advice",
+      "title": "benchmark command - github.com/weaviate/weaviate/test/benchmark ...",
+      "url": "https://pkg.go.dev/github.com/weaviate/weaviate/test/benchmark"
+    },
+    {
+      "snippet": "Benchmarking Weaviate and Turbopuffer Using Your Datasets. Don't take any ... GitHub stars. It handles tens of millions to tens of billions of vectors\u00a0...",
+      "title": "Weaviate vs Turbopuffer: Vector Database Comparison - Zilliz",
+      "url": "https://zilliz.com/comparison/weaviate-vs-turbopuffer"
+    },
+    {
+      "snippet": "5 Feb 2026 ... License: CC BY 4.0. arXiv:2602.17687 ... Our experimental code is also available on GitHub at github.com/weaviate/query-agent-benchmarking.",
+      "title": "irpapers: A Visual Document Benchmark for Scientific Retrieval and ...",
+      "url": "https://arxiv.org/html/2602.17687v1"
+    },
+    {
+      "snippet": "Weaviate has a GraphQL-API to access your data easily. \u200bWe aim to bring your vector search set up to production to query in mere milliseconds! Check our open-source benchmarks to see if Weaviate fits your use case.",
+      "title": "weaviate module - github.com/semi-technologies/weaviate - Go Packages",
+      "url": "https://pkg.go.dev/github.com/semi-technologies/weaviate"
+    }
+  ]
+}

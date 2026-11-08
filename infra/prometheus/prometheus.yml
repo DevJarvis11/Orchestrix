@@ -1,0 +1,17 @@
+# Prometheus for the observability profile (SPEC 19.2).
+global:
+  scrape_interval: 15s
+  evaluation_interval: 30s
+
+rule_files: [alerts.yml]
+
+scrape_configs:
+  - job_name: api
+    static_configs: [{targets: ["api:8000"]}]
+  - job_name: worker
+    static_configs: [{targets: ["worker:9464"]}]
+  - job_name: opa
+    static_configs: [{targets: ["opa:8181"]}]
+  - job_name: litellm
+    metrics_path: /metrics/
+    static_configs: [{targets: ["litellm:4000"]}]

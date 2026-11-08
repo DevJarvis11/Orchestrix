@@ -103,3 +103,31 @@ async def test_fr02_plan_approval_flag_reject_fails_run(make_run, flag: bool) ->
     assert run.event_types()[-1] == "run.failed"
     assert recorder.statuses[-1] == "failed"
     assert (await run.state())["escalations"][-1].resolution == "reject"
+
+
+async def test_fr15_clarify_then_low_confidence_gate_then_completes(
+    make_run, task: TaskInput
+) -> None:
+    """Two human pauses in a row (clarify, then the plan gate): each resume returns the task
+    to the phase it was in, so every FR-01 transition stays legal (the fake enforces them)."""
+    from dataclasses import replace
+
+    from orchestrix_core.schemas import Clarity
+
+    planner = ScriptedChatModel(
+        script=[Clarity(ambiguous=True, questions=["Which audience?"]), LOW, "deliverable"]
+    )
+    ctx, recorder = make_context(FakeChatProvider(planner=planner, reviewer=reviewer()))
+    run = make_run(replace(ctx, clarify_enabled=True))
+    await run.start(task)
+
+    [pending] = await run.interrupts()
+    assert (pending.value["trigger"], pending.value["level"]) == ("ambiguous_request", "clarify")
+    await run.resume(decision("answer", answers=["Platform engineers"]))
+
+    [pending] = await run.interrupts()
+    assert pending.value["trigger"] == "plan_low_confidence"
+    await run.resume(decision("approve"))
+    assert run.event_types()[-1] == "run.completed"
+    assert recorder.statuses[-1] == "completed"
+    assert "Platform engineers" in str(planner.calls[1][0].content)  # answers reach the planner

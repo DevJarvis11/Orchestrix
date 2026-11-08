@@ -1,8 +1,10 @@
 """`make gateway-check`: probe every catalogue model through the LiteLLM proxy (SPEC 16.2, A1).
 
-For each chat model: a plain chat, a json_schema structured output and a tool call. Then an
-embedding (must be EMBEDDING_DIM wide), a rerank (must rank the relevant document first) and a
-forced fallback from the VPN model to host Ollama. Exits non-zero on any failure.
+The chat models come from the proxy's own catalogue (`/model/info`), so adding or swapping a model
+in infra/litellm/config.yaml is all it takes. For each chat model: a plain chat, a json_schema
+structured output and a tool call. Then an embedding (must be EMBEDDING_DIM wide), a rerank (must
+rank the relevant document first) and a forced fallback, unless ORCHESTRIX_LOCAL_FALLBACK=false
+(VPN models only). Exits non-zero on any failure.
 """
 
 import argparse
@@ -20,14 +22,10 @@ from pydantic import BaseModel, ValidationError
 from orchestrix_core.config import get_settings
 from orchestrix_core.db.models import EMBEDDING_DIM
 
-REMOTE_MODEL = "gpt-oss-120b"
-LOCAL_MODEL = "qwen3-8b-local"
 EMBED_MODEL = "embed"
 RERANK_MODEL = "rerank"
-FALLBACK_PROBE_MODEL = "fallback-probe"  # unreachable deployment that must fall back to local
-
-# Per-model extras the app also sends (A2): effort is a gpt-oss knob.
-MODEL_PARAMS: dict[str, dict[str, Any]] = {REMOTE_MODEL: {"reasoning_effort": "low"}}
+FALLBACK_PROBE_MODEL = "fallback-probe"  # unreachable deployment that must fall back
+LOCAL_PROVIDERS = ("ollama/", "ollama_chat/")  # what --local-only means: host Ollama
 
 WEATHER_TOOL = {
     "type": "function",
@@ -70,9 +68,7 @@ def _message(body: dict[str, Any]) -> dict[str, Any]:
 
 
 async def _chat(client: httpx.AsyncClient, model: str, **payload: Any) -> dict[str, Any]:
-    response = await client.post(
-        "/v1/chat/completions", json={"model": model, **MODEL_PARAMS.get(model, {}), **payload}
-    )
+    response = await client.post("/v1/chat/completions", json={"model": model, **payload})
     if response.status_code != 200:
         raise CheckFailed(f"HTTP {response.status_code}: {response.text[:300]}")
     # A probe of one model must be answered by that model, not silently by the fallback.
@@ -192,17 +188,34 @@ def fallback_probe() -> Probe:
             raise CheckFailed(f"HTTP {response.status_code}: {response.text[:300]}")
         attempted = int(response.headers.get("x-litellm-attempted-fallbacks", "0"))
         group = response.headers.get("x-litellm-model-group")
-        if attempted < 1 or group != LOCAL_MODEL:
-            raise CheckFailed(
-                f"no fallback to {LOCAL_MODEL} (attempted={attempted}, group={group})"
-            )
+        if attempted < 1 or group in (None, FALLBACK_PROBE_MODEL):
+            raise CheckFailed(f"no fallback (attempted={attempted}, group={group})")
         return f"{FALLBACK_PROBE_MODEL} -> {group}"
 
     return probe
 
 
-def build_probes(local_only: bool) -> list[tuple[str, Probe]]:
-    models = [LOCAL_MODEL] if local_only else [REMOTE_MODEL, LOCAL_MODEL]
+async def chat_models(
+    client: httpx.AsyncClient, *, local_only: bool, with_local: bool
+) -> list[str]:
+    """Chat models in the proxy's catalogue (the probe deployment excluded)."""
+    response = await client.get("/model/info")
+    response.raise_for_status()
+    names: list[str] = []
+    entries: list[dict[str, Any]] = response.json().get("data", [])
+    for entry in entries:
+        name = str(entry.get("model_name", ""))
+        params: dict[str, Any] = entry.get("litellm_params") or {}
+        info: dict[str, Any] = entry.get("model_info") or {}
+        local = str(params.get("model", "")).startswith(LOCAL_PROVIDERS)
+        chat = info.get("mode") == "chat"
+        wanted = local if local_only else (with_local or not local)
+        if chat and wanted and name != FALLBACK_PROBE_MODEL and name not in names:
+            names.append(name)
+    return names
+
+
+def build_probes(models: list[str], *, local_only: bool, fallback: bool) -> list[tuple[str, Probe]]:
     probes: list[tuple[str, Probe]] = []
     for model in models:
         probes += [
@@ -213,7 +226,8 @@ def build_probes(local_only: bool) -> list[tuple[str, Probe]]:
     if not local_only:  # embeddings and rerank live on Yotta (A5)
         probes.append((f"{EMBED_MODEL} embedding", embed_probe()))
         probes.append((f"{RERANK_MODEL} ranking", rerank_probe()))
-    probes.append(("fallback to local", fallback_probe()))
+    if fallback:
+        probes.append(("forced fallback", fallback_probe()))
     return probes
 
 
@@ -231,7 +245,9 @@ async def run(client: httpx.AsyncClient, probes: list[tuple[str, Probe]]) -> lis
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--local-only", action="store_true", help="skip the Yotta (VPN) models")
+    parser.add_argument(
+        "--local-only", action="store_true", help="only the host-Ollama models (no VPN)"
+    )
     args = parser.parse_args()
 
     settings = get_settings()
@@ -243,7 +259,11 @@ def main() -> None:
             headers=headers,
             timeout=360,  # > proxy timeouts
         ) as client:
-            return await run(client, build_probes(args.local_only))
+            local = settings.local_fallback  # false = VPN models only: never probe Ollama
+            models = await chat_models(client, local_only=args.local_only, with_local=local)
+            return await run(
+                client, build_probes(models, local_only=args.local_only, fallback=local)
+            )
 
     results = asyncio.run(go())
     for r in results:

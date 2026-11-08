@@ -35,6 +35,16 @@ class Run:
         ):
             if mode == "custom":
                 self.events.append(cast(dict[str, Any], chunk))
+        await self._pause_like_the_worker()
+
+    async def _pause_like_the_worker(self) -> None:
+        """The worker sets the paused task status after the stream stops (runner._pause)."""
+        pending = await self.interrupts()
+        if pending:
+            plan_gate = any(dict(i.value).get("level") == "approve_plan" for i in pending)
+            await self.ctx.services.recorder.set_task_status(
+                self.ctx.task_id, "awaiting_plan_approval" if plan_gate else "awaiting_human"
+            )
 
     async def start(self, task: TaskInput) -> None:
         await self._stream({"task": task})

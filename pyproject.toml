@@ -63,7 +63,7 @@ ignore = ["E501"]
 known-first-party = ["orchestrix_*"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "S105", "S106", "S603", "S607"]
+"tests/**" = ["S101", "S104", "S105", "S106", "S603", "S607"]
 "migrations/**" = ["S608"]
 
 [tool.pyright]
@@ -83,5 +83,6 @@ testpaths = ["tests"]
 markers = [
     "integration: needs Docker (testcontainers)",
     "resilience: needs the Compose stack with fake models (make test-resilience)",
+    "stack: needs the running Compose stack (make test-stack)",
 ]
 addopts = "-ra --strict-markers"

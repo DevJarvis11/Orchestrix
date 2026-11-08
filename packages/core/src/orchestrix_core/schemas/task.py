@@ -30,6 +30,7 @@ class TaskCreate(BaseModel):
     attachments: list[UUID] = Field(default=[], max_length=5)
     budget: Budget | None = None  # override; must not exceed the team cap
     require_plan_approval: bool = False
+    require_final_approval: bool = False  # FR-40: a human approves before delivery
     model_overrides: dict[Role, str] = {}  # amendment A2: per-task model per role
 
 
@@ -39,5 +40,7 @@ class TaskInput(BaseModel):
     id: str
     title: str
     description: str
-    attachments: list[str] = []
+    attachments: list[str] = []  # names, as plans reference them: "attachment:<name>"
+    attachment_ids: dict[str, str] = {}  # name -> artifact id, for files.read_artifact
     require_plan_approval: bool = False
+    require_final_approval: bool = False

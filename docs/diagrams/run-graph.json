@@ -1,0 +1,323 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Orchestrix Run Graph",
+    "output": ".archify/workflow-run-graph-20261108-100015/orchestrix-run-graph.html",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    {
+      "id": "supervisor",
+      "label": "Supervisor"
+    },
+    {
+      "id": "gates",
+      "label": "Human gates (interrupt)",
+      "variant": "exception"
+    },
+    {
+      "id": "specialists",
+      "label": "Subtask workers (parallel)"
+    },
+    {
+      "id": "delivery",
+      "label": "Delivery"
+    }
+  ],
+  "phases": [
+    {
+      "id": "planning",
+      "label": "Plan",
+      "fromCol": 0,
+      "toCol": 2
+    },
+    {
+      "id": "execution",
+      "label": "Execute + review",
+      "fromCol": 3,
+      "toCol": 4,
+      "variant": "emphasis"
+    },
+    {
+      "id": "delivering",
+      "label": "Deliver",
+      "fromCol": 5,
+      "toCol": 5
+    }
+  ],
+  "groups": [
+    {
+      "id": "worker_loop",
+      "label": "Revise loop",
+      "lane": "specialists",
+      "fromCol": 3,
+      "toCol": 4,
+      "variant": "emphasis"
+    }
+  ],
+  "mainPath": [
+    "intake",
+    "plan",
+    "validate",
+    "plan_gate",
+    "dispatch",
+    "synthesize",
+    "final_review",
+    "final_gate",
+    "deliver"
+  ],
+  "nodes": [
+    {
+      "id": "intake",
+      "lane": "supervisor",
+      "col": 0,
+      "type": "backend",
+      "label": "Intake",
+      "sublabel": "+ memory search",
+      "width": 140
+    },
+    {
+      "id": "plan",
+      "lane": "supervisor",
+      "col": 1,
+      "type": "backend",
+      "label": "Plan",
+      "sublabel": "typed DAG",
+      "tag": "planner role",
+      "width": 140
+    },
+    {
+      "id": "validate",
+      "lane": "supervisor",
+      "col": 2,
+      "type": "security",
+      "label": "Validate",
+      "sublabel": "schema + DAG",
+      "width": 140
+    },
+    {
+      "id": "dispatch",
+      "lane": "supervisor",
+      "col": 3,
+      "type": "messagebus",
+      "label": "Dispatch",
+      "sublabel": "budget + cancel",
+      "width": 140
+    },
+    {
+      "id": "synthesize",
+      "lane": "supervisor",
+      "col": 4,
+      "type": "backend",
+      "label": "Synthesize",
+      "sublabel": "deliverable",
+      "width": 140
+    },
+    {
+      "id": "final_review",
+      "lane": "supervisor",
+      "col": 5,
+      "type": "security",
+      "label": "Final review",
+      "sublabel": "reviewer role",
+      "width": 140
+    },
+    {
+      "id": "clarify",
+      "lane": "gates",
+      "col": 1,
+      "type": "external",
+      "label": "Clarify",
+      "sublabel": "≤ 3 questions",
+      "width": 140
+    },
+    {
+      "id": "plan_gate",
+      "lane": "gates",
+      "col": 2,
+      "type": "external",
+      "label": "Plan gate",
+      "sublabel": "approve plan",
+      "width": 140
+    },
+    {
+      "id": "escalate",
+      "lane": "gates",
+      "col": 4,
+      "type": "external",
+      "label": "Escalate",
+      "sublabel": "take over / retry",
+      "width": 140
+    },
+    {
+      "id": "final_gate",
+      "lane": "gates",
+      "col": 5,
+      "type": "external",
+      "label": "Final gate",
+      "sublabel": "approve delivery",
+      "width": 140
+    },
+    {
+      "id": "execute",
+      "lane": "specialists",
+      "col": 3,
+      "type": "backend",
+      "label": "Execute",
+      "sublabel": "specialist + tools",
+      "tag": "policy checked",
+      "width": 140
+    },
+    {
+      "id": "review",
+      "lane": "specialists",
+      "col": 4,
+      "type": "security",
+      "label": "Review",
+      "sublabel": "score 0-10",
+      "width": 140
+    },
+    {
+      "id": "deliver",
+      "lane": "delivery",
+      "col": 5,
+      "type": "database",
+      "label": "Deliver",
+      "sublabel": "memory + artifact",
+      "width": 140
+    }
+  ],
+  "edges": [
+    {
+      "id": "intake-plan",
+      "from": "intake",
+      "to": "plan",
+      "variant": "emphasis"
+    },
+    {
+      "id": "plan-clarify",
+      "from": "plan",
+      "to": "clarify",
+      "label": "ambiguous",
+      "variant": "dashed",
+      "role": "branch"
+    },
+    {
+      "id": "plan-validate",
+      "from": "plan",
+      "to": "validate",
+      "variant": "emphasis"
+    },
+    {
+      "id": "validate-plan",
+      "from": "validate",
+      "to": "plan",
+      "label": "repair once",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "id": "validate-gate",
+      "from": "validate",
+      "to": "plan_gate",
+      "variant": "emphasis"
+    },
+    {
+      "id": "gate-dispatch",
+      "from": "plan_gate",
+      "to": "dispatch",
+      "label": "approved",
+      "variant": "emphasis"
+    },
+    {
+      "id": "dispatch-execute",
+      "from": "dispatch",
+      "to": "execute",
+      "label": "Send x N",
+      "variant": "default",
+      "role": "branch"
+    },
+    {
+      "id": "execute-review",
+      "from": "execute",
+      "to": "review"
+    },
+    {
+      "id": "review-execute",
+      "from": "review",
+      "to": "execute",
+      "label": "revise ≤ 2",
+      "variant": "dashed",
+      "role": "return"
+    },
+    {
+      "id": "review-escalate",
+      "from": "review",
+      "to": "escalate",
+      "label": "low score",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "id": "dispatch-synth",
+      "from": "dispatch",
+      "to": "synthesize",
+      "label": "all done",
+      "variant": "emphasis"
+    },
+    {
+      "id": "synth-final",
+      "from": "synthesize",
+      "to": "final_review",
+      "variant": "emphasis"
+    },
+    {
+      "id": "final-gate",
+      "from": "final_review",
+      "to": "final_gate",
+      "variant": "emphasis"
+    },
+    {
+      "id": "gate-deliver",
+      "from": "final_gate",
+      "to": "deliver",
+      "variant": "emphasis"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Durable",
+      "items": [
+        "Every step is checkpointed in Postgres; a killed worker's run resumes elsewhere",
+        "Each human gate is an interrupt(); a decision resumes it by interrupt id"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Returns not drawn",
+      "items": [
+        "Clarify answers go back to Plan",
+        "An approved subtask returns to Dispatch, which starts the next ready ones",
+        "Escalation decisions resume the subtask: approve, take over, retry or skip"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Gates",
+      "items": [
+        "Plan gate: low confidence, approval flag, or a plan invalid twice",
+        "Escalate: a subtask failed twice or scored low after 2 revisions",
+        "Sensitive tools and budget_100 also pause inside a specialist"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Stops",
+      "items": [
+        "Cancel, a rejected plan or budget_exceeded route straight to finalize"
+      ]
+    }
+  ]
+}

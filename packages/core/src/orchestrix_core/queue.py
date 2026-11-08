@@ -13,6 +13,7 @@ from orchestrix_core.config import get_settings
 
 START_RUN: Final = "orchestrix.start_run"
 RESUME_RUN: Final = "orchestrix.resume_run"
+REPLAY_RUN: Final = "orchestrix.replay_run"
 
 
 @lru_cache

@@ -1,0 +1,45 @@
+{
+  "query": "qdrant license github benchmarks",
+  "results": [
+    {
+      "snippet": "Qdrant - High-performance, massive-scale Vector Database and Vector Search Engine for the next generation of AI. Also available in the cloud\u00a0...",
+      "title": "GitHub - qdrant/qdrant: Qdrant - High-performance, massive-scale ...",
+      "url": "https://github.com/qdrant/qdrant"
+    },
+    {
+      "snippet": "Framework for benchmarking vector search engines. Contribute to qdrant/vector-db-benchmark development by creating an account on GitHub.",
+      "title": "GitHub - qdrant/vector-db-benchmark: Framework for benchmarking ...",
+      "url": "https://github.com/qdrant/vector-db-benchmark"
+    },
+    {
+      "snippet": "Collection of Qdrant benchmarks. Contribute to qdrant/benchmark development by creating an account on GitHub.",
+      "title": "GitHub - qdrant/benchmark: Collection of Qdrant benchmarks \u00b7 GitHub",
+      "url": "https://github.com/qdrant/benchmark"
+    },
+    {
+      "snippet": "Apache License 2.0\u20222.6k2.6k forks\u202234k34k stars\u2022490490 issues\u2022197197 pull requests\u2022Updated \u00b7 Aug 19, 2026 \u00b7 Aug 19, 2026 \u00b7 Public \u00b7 *high-load* benchmarking tool \u00b7 Rust\u202244 forks\u20221818 stars\u202211 issue\u202255 pull requests\u2022Updated \u00b7 Aug 19, 2026 \u00b7 Aug 19, 2026 \u00b7 Public \u00b7 Repository for experiments of Qdrant to cuVS interchange \u00b7",
+      "title": "Repositories - Qdrant - GitHub",
+      "url": "https://github.com/orgs/qdrant/repositories"
+    },
+    {
+      "snippet": "8 Jul 2026 ... Reproducing This Benchmark \u00b7 Load wiki_dpr_e5 (21M \u00d7 768d) with TurboQuant 4-bit, originals on disk, HNSW m=16, ef_construct=256 \u00b7 Enable\u00a0...",
+      "title": "Qdrant Beats Elastic's DiskBBQ at 2x Throughput, Half the Latency ...",
+      "url": "https://qdrant.tech/blog/benchmark-elastic-diskbbq/"
+    },
+    {
+      "snippet": "23 Aug 2026 ... Qdrant is an open-source vector database and vector similarity search engine written in Rust. It stores high-dimensional vectors alongside JSON\u00a0...",
+      "title": "Qdrant Deep Dive | The Rust-Powered Vector DB Startups ... - Scaler",
+      "url": "https://www.scaler.com/topics/what-is-qdrant-deep-dive/"
+    },
+    {
+      "snippet": "Qdrant is licensed under the Apache License, Version 2.0.",
+      "title": "GitHub - pkubaj/qdrant: Qdrant - High-performance, massive-scale ...",
+      "url": "https://github.com/pkubaj/qdrant"
+    },
+    {
+      "snippet": "Qdrant is licensed under the Apache License, Version 2.0.",
+      "title": "GitHub - qdrant/qdrant at v1.13.0 \u00b7 GitHub",
+      "url": "https://github.com/qdrant/qdrant/tree/v1.13.0"
+    }
+  ]
+}

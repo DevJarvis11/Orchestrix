@@ -29,3 +29,5 @@ test-results/
 .idea/
 *.Zone.Identifier
 .DS_Store
+reports/
+.archify/

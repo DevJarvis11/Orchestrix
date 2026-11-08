@@ -1,0 +1,10 @@
+{
+  "query": "fixture vector databases",
+  "results": [
+    {
+      "snippet": "A deterministic recorded fixture for MCP web-search tests.",
+      "title": "Vector database fixture source",
+      "url": "https://example.test/vector-database"
+    }
+  ]
+}

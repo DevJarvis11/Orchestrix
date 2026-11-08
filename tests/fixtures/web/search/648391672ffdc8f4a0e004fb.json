@@ -1,0 +1,45 @@
+{
+  "query": "milvus license github benchmarks",
+  "results": [
+    {
+      "snippet": "The Milvus open-source project is under LF AI & Data Foundation, distributed with Apache 2.0 License, with Zilliz as its major contributor. Quickstart. $ pip\u00a0...",
+      "title": "GitHub - milvus-io/milvus: Milvus is a high-performance, cloud-native ...",
+      "url": "https://github.com/milvus-io/milvus"
+    },
+    {
+      "snippet": "milvus-io / benchmarks Public \u00b7 Notifications \u00b7 You must be signed in to change notification settings \u00b7 Fork 1 \u00b7 Star 0 \u00b7 0 stars 1 fork Branches Tags Activity \u00b7 Star \u00b7 Notifications \u00b7 You must be signed in to change notification settings \u00b7 master \u00b7 BranchesTags \u00b7",
+      "title": "GitHub - milvus-io/benchmarks",
+      "url": "https://github.com/milvus-io/benchmarks"
+    },
+    {
+      "snippet": "The standard benchmark results displayed here include all 15 cases that we currently support for 6 of our clients (Milvus, Zilliz Cloud, Elastic Search, Qdrant Cloud, Weaviate Cloud and PgVector).",
+      "title": "zilliztech/VectorDBBench: Benchmark for vector databases. - GitHub",
+      "url": "https://github.com/zilliztech/vectordbbench"
+    },
+    {
+      "snippet": "Milvus is a high-performance, cloud-native vector database built for scalable vector ANN search - milvus-io/milvus",
+      "title": "milvus/LICENSE at master \u00b7 milvus-io/milvus",
+      "url": "https://github.com/milvus-io/milvus/blob/master/LICENSE"
+    },
+    {
+      "snippet": "This project tests which Milvus field, index and query combinations return correct prefix matches for e-commerce typeahead. It then measures their latency at a steady 20 QPS on Zilliz Cloud.",
+      "title": "GitHub - simonhearne/milvus_typeahead_benchmarks \u00b7 GitHub",
+      "url": "https://github.com/simonhearne/milvus_typeahead_benchmarks"
+    },
+    {
+      "snippet": "The GIST dataset is 960 dim and ... milvus-hnsw: https://github.com/milvus-io/ann-benchmarks?tab=readme-ov-file#gist-960-euclidean The benchmark is mainly tested on a standalone milvus with no more than 8 cpus....",
+      "title": "Seeking Community Experience: RPS Benchmarks for 55 million Vectors ...",
+      "url": "https://github.com/milvus-io/milvus/discussions/46547"
+    },
+    {
+      "snippet": "29 Jul 2026 ... Milvus 3.0 is available today under the Apache 2.0 license, maintained as an LF AI & Data project. ... github.com/milvus-io/milvus; Join the\u00a0...",
+      "title": "Milvus 3.0 Is Here: LF AI & Data's Open Source Vector Database ...",
+      "url": "https://lfaidata.foundation/blog/2026/07/29/milvus-3-0-is-here-lf-ai-datas-open-source-vector-database-goes-lake-native/"
+    },
+    {
+      "snippet": "A benchmark tool to evaluate the QPS, latency and recall of milvus service - ministat/milvus-benchmark",
+      "title": "GitHub - ministat/milvus-benchmark: A benchmark tool to evaluate ...",
+      "url": "https://github.com/ministat/milvus-benchmark"
+    }
+  ]
+}

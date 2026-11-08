@@ -11,6 +11,7 @@ from orchestrix_agents.context import (
     SpecialistOutcome,
     SpecialistRequest,
 )
+from orchestrix_agents.nodes.dispatch import build_worker_input
 from orchestrix_core.schemas import SubtaskResult, TaskInput
 from tests.fixtures.fakes import (
     FakeChatProvider,
@@ -50,6 +51,25 @@ async def test_fr24_one_failure_retries_with_alternative_hint(make_run, task: Ta
     assert (await run.state())["subtask_status"] == {"s1": "approved"}
     assert specialists.requests[0].hint == ""
     assert "different method" in specialists.requests[1].hint
+
+
+def test_fr25_taint_propagates_from_a_fetched_subtask_to_its_dependent(task: TaskInput) -> None:
+    plan = make_plan(
+        subtask("s1"), subtask("s2", depends_on=["s1"], inputs={"research": "s1.output"})
+    )
+    worker = build_worker_input(
+        {
+            "task": task,
+            "plan": plan,
+            "subtask_results": {
+                "s1": SubtaskResult(key="s1", output="untrusted page summary", confidence=0.8)
+            },
+            "tainted": {"s1": True},
+        },
+        "s2",
+    )
+    assert worker.get("tainted_inputs") is True
+    assert worker.get("inputs", {})["research"] == "untrusted page summary"
 
 
 async def test_fr24_failure_twice_escalates_take_over(make_run, task: TaskInput) -> None:

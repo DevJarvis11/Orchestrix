@@ -1,0 +1,5 @@
+{
+  "content": "ORCHESTRIX_FIXTURE",
+  "model": "gpt-oss-120b",
+  "tool_calls": []
+}

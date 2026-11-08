@@ -1,0 +1,13 @@
+# SearXNG for mcp-web (CLAUDE.md: no Tavily key). Defaults plus the JSON API web.search needs.
+use_default_settings: true
+server:
+  limiter: false          # only mcp-web calls it, inside the Compose network
+  image_proxy: false
+  public_instance: false
+search:
+  safe_search: 0
+  formats:
+    - html
+    - json
+ui:
+  static_use_hash: true

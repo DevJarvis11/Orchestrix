@@ -9,6 +9,9 @@ requires-python = ">=3.13"
 dependencies = [
     "orchestrix-agents",
     "orchestrix-core",
+    "orchestrix-memory",
+    "orchestrix-policy",
+    "orchestrix-tools",
     "redis>=8.1.0",
     "taskiq>=0.13.0",
     "taskiq-redis>=1.2.4",
@@ -21,3 +24,6 @@ build-backend = "uv_build"
 [tool.uv.sources]
 orchestrix-core = { workspace = true }
 orchestrix-agents = { workspace = true }
+orchestrix-policy = { workspace = true }
+orchestrix-tools = { workspace = true }
+orchestrix-memory = { workspace = true }

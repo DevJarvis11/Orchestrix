@@ -9,7 +9,12 @@ requires-python = ">=3.13"
 dependencies = [
     "fastapi>=0.159.1",
     "orchestrix-core",
+    "orchestrix-memory",
+    "orchestrix-policy",
+    "orchestrix-tools",
+    "prometheus-fastapi-instrumentator>=8.1.0",
     "pyjwt>=2.15.1",
+    "python-multipart>=0.0.32",
     "uvicorn[standard]>=0.54.0",
 ]
 
@@ -19,3 +24,6 @@ build-backend = "uv_build"
 
 [tool.uv.sources]
 orchestrix-core = { workspace = true }
+orchestrix-tools = { workspace = true }
+orchestrix-policy = { workspace = true }
+orchestrix-memory = { workspace = true }

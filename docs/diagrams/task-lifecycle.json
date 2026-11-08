@@ -1,0 +1,43 @@
+{
+  "schema_version": 2,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "Orchestrix Task Lifecycle (FR-01)",
+    "output": ".archify/lifecycle-task-status-20261108-100254/orchestrix-task-lifecycle.html",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    { "id": "main", "label": "Task status" },
+    { "id": "waiting", "label": "Waiting on a human" },
+    { "id": "terminal", "label": "Terminal exits" }
+  ],
+  "states": [
+    { "id": "queued", "type": "start", "label": "Queued", "sublabel": "202 Accepted", "lane": "main", "col": 0, "step": "01" },
+    { "id": "planning", "type": "active", "label": "Planning", "sublabel": "plan + validate", "lane": "main", "col": 1, "step": "02" },
+    { "id": "running", "type": "active", "label": "Running", "sublabel": "subtasks in parallel", "lane": "main", "col": 2, "step": "03" },
+    { "id": "reviewing", "type": "decision", "label": "Reviewing", "sublabel": "synthesis + review", "lane": "main", "col": 3, "step": "04" },
+    { "id": "completed", "type": "success", "label": "Completed", "sublabel": "deliverable ready", "lane": "main", "col": 4, "step": "05" },
+    { "id": "plan_approval", "type": "waiting", "label": "Awaiting plan approval", "sublabel": "approve or edit plan", "lane": "waiting", "col": 1 },
+    { "id": "awaiting_human", "type": "waiting", "label": "Awaiting human", "sublabel": "escalation open", "lane": "waiting", "col": 2 },
+    { "id": "cancelled", "type": "failure", "label": "Cancelled", "sublabel": "by owner or operator", "lane": "terminal", "col": 1 },
+    { "id": "failed", "type": "failure", "label": "Failed", "sublabel": "rejected or timed out", "lane": "terminal", "col": 2 },
+    { "id": "budget_exceeded", "type": "failure", "label": "Budget exceeded", "sublabel": "cap not raised", "lane": "terminal", "col": 3 }
+  ],
+  "transitions": [
+    { "from": "queued", "to": "planning" },
+    { "from": "planning", "to": "running" },
+    { "from": "running", "to": "reviewing" },
+    { "from": "reviewing", "to": "completed" },
+    { "from": "planning", "to": "plan_approval", "label": "low confidence", "variant": "security" },
+    { "from": "plan_approval", "to": "running", "label": "approved" },
+    { "from": "running", "to": "awaiting_human", "label": "escalation", "variant": "security" },
+    { "from": "awaiting_human", "to": "running", "label": "decision" },
+    { "from": "plan_approval", "to": "cancelled", "label": "cancel", "variant": "dashed" },
+    { "from": "awaiting_human", "to": "failed", "label": "reject / 72 h", "variant": "security" },
+    { "from": "awaiting_human", "to": "budget_exceeded", "label": "budget stop", "variant": "security" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Enforced", "items": ["state_machine.py validates every change; an illegal transition raises", "Repeating the current status is a no-op, so resumed nodes are harmless"] },
+    { "dot": "amber", "title": "Also allowed", "items": ["Any live status can end in failed, cancelled or budget_exceeded", "Clarify questions and the final gate also wait as awaiting_human"] }
+  ]
+}

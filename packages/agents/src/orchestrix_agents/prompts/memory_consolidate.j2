@@ -1,0 +1,5 @@
+Merge these near-duplicate {{ kind }} memories into one memory of at most 500 characters. Keep every distinct, useful detail; drop repetition. Do not add facts that are not in them.
+
+{% for m in memories %}
+- {{ m.text }}
+{% endfor %}

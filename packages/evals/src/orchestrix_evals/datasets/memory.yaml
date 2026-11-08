@@ -1,0 +1,143 @@
+# Memory cases (SPEC 20.2): 15 task pairs. Task A teaches a preference or lesson that task B
+# needs. Hit = a memory written by A is in B's top 8 and mentions a keyword. Plan quality is a
+# position-randomised pairwise judgement of B's plan with vs without memory (fresh team).
+version: 1
+cases:
+- id: m01
+  lesson: I always want a TL;DR line at the very top of every report.
+  a_title: 'A: TL;DR first'
+  a_description: Summarise the benefits of HNSW indexes. I always want a TL;DR line at the very top of every report.
+  b_title: 'B: TL;DR first'
+  b_description: Summarise the benefits of IVFFlat indexes.
+  keywords:
+  - tl;dr
+- id: m02
+  lesson: Please always report latency in milliseconds with one decimal, never seconds.
+  a_title: 'A: Metric units'
+  a_description: Compare two databases' latency. Please always report latency in milliseconds with one decimal,
+    never seconds.
+  b_title: 'B: Metric units'
+  b_description: Compare Qdrant and Milvus latency.
+  keywords:
+  - millisecond
+  - one decimal
+- id: m03
+  lesson: 'Lesson from last quarter: benchmarks need the vendor''s own source plus one independent source.'
+  a_title: 'A: Benchmark sourcing'
+  a_description: 'Compare vector database benchmark claims. Lesson from last quarter: benchmarks need the vendor''s
+    own source plus one independent source.'
+  b_title: 'B: Benchmark sourcing'
+  b_description: Compare benchmark claims for Weaviate and Qdrant.
+  keywords:
+  - independent source
+  - vendor
+- id: m04
+  lesson: I prefer British spelling in everything you write for me.
+  a_title: 'A: British spelling'
+  a_description: Write a short note about our licence choices. I prefer British spelling in everything you write
+    for me.
+  b_title: 'B: British spelling'
+  b_description: Write a short note about the data retention policy.
+  keywords:
+  - british
+- id: m05
+  lesson: I like results as a markdown table rather than prose.
+  a_title: 'A: Table format'
+  a_description: List the top three support categories. I like results as a markdown table rather than prose.
+  b_title: 'B: Table format'
+  b_description: List the busiest hosts by error count.
+  keywords:
+  - table
+- id: m06
+  lesson: Keep answers under 100 words for me; I read them on my phone.
+  a_title: 'A: Short answers'
+  a_description: Explain what pgvector is. Keep answers under 100 words for me; I read them on my phone.
+  b_title: 'B: Short answers'
+  b_description: Explain what OPA is.
+  keywords:
+  - 100 words
+  - short
+- id: m07
+  lesson: Our codebase is Python 3.13 only, so use modern syntax like match statements.
+  a_title: 'A: Python version'
+  a_description: Write a small CSV parser. Our codebase is Python 3.13 only, so use modern syntax like match statements.
+  b_title: 'B: Python version'
+  b_description: Write a small JSON validator.
+  keywords:
+  - '3.13'
+  - python
+- id: m08
+  lesson: We cannot use pandas in production code; use the standard library only.
+  a_title: 'A: No pandas'
+  a_description: Analyse the latency numbers. We cannot use pandas in production code; use the standard library
+    only.
+  b_title: 'B: No pandas'
+  b_description: Write code to compute ticket statistics.
+  keywords:
+  - pandas
+  - standard library
+- id: m09
+  lesson: Always link to the official documentation, not blog posts.
+  a_title: 'A: Cite docs'
+  a_description: Explain LangGraph checkpoints. Always link to the official documentation, not blog posts.
+  b_title: 'B: Cite docs'
+  b_description: Explain LangGraph interrupts.
+  keywords:
+  - official documentation
+  - official docs
+- id: m10
+  lesson: Our audience is non-technical customers, so avoid jargon.
+  a_title: 'A: Audience'
+  a_description: Write release notes. Our audience is non-technical customers, so avoid jargon.
+  b_title: 'B: Audience'
+  b_description: Write release notes for the next version.
+  keywords:
+  - non-technical
+  - jargon
+- id: m11
+  lesson: Always show costs in euros, not dollars.
+  a_title: 'A: Currency'
+  a_description: Estimate monthly hosting cost. Always show costs in euros, not dollars.
+  b_title: 'B: Currency'
+  b_description: Estimate the yearly storage cost.
+  keywords:
+  - euro
+- id: m12
+  lesson: 'Lesson: emails to customers always need a reviewer''s approval before sending.'
+  a_title: 'A: Escalate emails'
+  a_description: 'Draft a customer email. Lesson: emails to customers always need a reviewer''s approval before
+    sending.'
+  b_title: 'B: Escalate emails'
+  b_description: Draft a customer email about the outage.
+  keywords:
+  - approval
+  - review
+- id: m13
+  lesson: 'Lesson: when a site blocks fetching, use the GitHub repository README instead.'
+  a_title: 'A: Retry approach'
+  a_description: 'Fetch the pgvector README and summarise it. Lesson: when a site blocks fetching, use the GitHub
+    repository README instead.'
+  b_title: 'B: Retry approach'
+  b_description: Fetch the Qdrant documentation and summarise it.
+  keywords:
+  - github
+  - readme
+- id: m14
+  lesson: 'Lesson: keep plans to at most three subtasks for research comparisons; larger plans wasted budget.'
+  a_title: 'A: Plan small'
+  a_description: 'Research two vector databases. Lesson: keep plans to at most three subtasks for research comparisons;
+    larger plans wasted budget.'
+  b_title: 'B: Plan small'
+  b_description: Research three vector databases.
+  keywords:
+  - three subtasks
+  - subtasks
+- id: m15
+  lesson: I always want dates in ISO format (YYYY-MM-DD).
+  a_title: 'A: Date format'
+  a_description: Summarise the meeting timeline. I always want dates in ISO format (YYYY-MM-DD).
+  b_title: 'B: Date format'
+  b_description: Summarise the project milestones.
+  keywords:
+  - iso
+  - yyyy-mm-dd

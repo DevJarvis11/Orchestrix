@@ -1,0 +1,833 @@
+# Golden tasks (SPEC 20.2): 40 tasks across five categories. The first 10 are the smoke suite.
+# Checks are deterministic (checks.py); the rubric goes to the LLM judge.
+version: 1
+cases:
+- id: g01
+  category: research
+  title: Licenses of open-source vector databases
+  description: Find the license of each of Qdrant, Milvus, Weaviate and pgvector from their official repositories
+    or sites. Return a markdown table (database, license, source URL) and one sentence on what the licenses mean
+    for commercial use.
+  attachments: []
+  rubric:
+  - Covers all four databases
+  - Each license is correct and backed by an official source URL
+  - Explains commercial-use implications accurately
+  checks:
+  - kind: contains_all
+    values:
+    - qdrant
+    - milvus
+    - weaviate
+    - pgvector
+  - kind: contains_any
+    values:
+    - apache
+    - postgresql license
+    - bsd
+  - kind: min_citations
+    n: 4
+  - &id001
+    kind: citations_resolve
+- id: g02
+  category: analysis
+  title: Qdrant kNN latency
+  description: Using the attached query_latency.csv, report the mean p95_ms for database qdrant with query_type
+    knn_top10, rounded to one decimal, and say how it compares with pgvector knn_top10 (also one decimal).
+  attachments:
+  - query_latency.csv
+  rubric:
+  - Both means are computed correctly
+  - States which is faster
+  - Shows the method
+  checks:
+  - kind: csv_number
+    csv: query_latency.csv
+    column: p95_ms
+    agg: mean
+    where:
+      database: qdrant
+      query_type: knn_top10
+    decimals:
+    - 1
+  - kind: csv_number
+    csv: query_latency.csv
+    column: p95_ms
+    agg: mean
+    where:
+      database: pgvector
+      query_type: knn_top10
+    decimals:
+    - 1
+- id: g03
+  category: writing
+  title: Meeting summary
+  description: Turn the attached meeting notes into a summary for people who missed the meeting, with sections 'Decisions'
+    and 'Action items' (owner for each).
+  attachments:
+  - meeting_notes.md
+  rubric:
+  - Accurate decisions
+  - Every action item has its owner
+  - No invented content
+  checks:
+  - kind: sections
+    values:
+    - Decisions
+    - Action items
+  - kind: contains_all
+    values:
+    - Marco
+    - Tom
+    - Lena
+  - kind: contains_all
+    values:
+    - rollback
+- id: g04
+  category: coding
+  title: Fibonacci with tests
+  description: Write a Python function fib(n) that returns the n-th Fibonacci number iteratively, plus three asserts,
+    and run it in the sandbox to show it passes.
+  attachments: []
+  rubric:
+  - Correct iterative implementation
+  - Asserts run and pass
+  - Code shown
+  checks:
+  - &id002
+    kind: code_block
+  - kind: contains_any
+    values:
+    - def fib
+- id: g05
+  category: mixed
+  title: Vector DB recommendation
+  description: Compare Qdrant and pgvector on license (with sources) and on the attached query_latency.csv (mean
+    p95_ms for knn_top10, one decimal each). Recommend one for a team already running PostgreSQL, in a short report
+    with sections 'Findings' and 'Recommendation'.
+  attachments:
+  - query_latency.csv
+  rubric:
+  - Licenses correct and cited
+  - Latency numbers correct
+  - Recommendation follows from the evidence
+  checks:
+  - kind: sections
+    values:
+    - Findings
+    - Recommendation
+  - kind: csv_number
+    csv: query_latency.csv
+    column: p95_ms
+    agg: mean
+    where:
+      database: qdrant
+      query_type: knn_top10
+    decimals:
+    - 1
+  - kind: min_citations
+    n: 1
+  - *id001
+- id: g06
+  category: research
+  title: What is pgvector HNSW
+  description: Explain what the HNSW index in pgvector is, when to choose it over IVFFlat, and the two main build
+    parameters. Cite the pgvector documentation.
+  attachments: []
+  rubric:
+  - Correctly explains HNSW vs IVFFlat trade-offs
+  - Names m and ef_construction
+  - Cites the pgvector docs
+  checks:
+  - kind: contains_all
+    values:
+    - hnsw
+    - ivfflat
+  - kind: contains_any
+    values:
+    - ef_construction
+    - ef construction
+  - kind: min_citations
+    n: 1
+  - *id001
+- id: g07
+  category: analysis
+  title: Throughput by database
+  description: From the attached query_latency.csv compute the mean qps per database (one decimal) and present a
+    markdown table sorted from highest to lowest.
+  attachments:
+  - query_latency.csv
+  rubric:
+  - Correct mean qps per database
+  - Sorted correctly
+  - Table format
+  checks:
+  - kind: csv_number
+    csv: query_latency.csv
+    column: qps
+    agg: mean
+    where:
+      database: qdrant
+    decimals:
+    - 1
+  - kind: csv_number
+    csv: query_latency.csv
+    column: qps
+    agg: mean
+    where:
+      database: pgvector
+    decimals:
+    - 1
+  - kind: contains_any
+    values:
+    - '|'
+- id: g08
+  category: writing
+  title: Product update email draft
+  description: Write a short internal update (150-250 words) on the Notes app from the attached product notes, highlighting
+    growth, the top feature request and the churn problem. Do not send it.
+  attachments:
+  - product_notes.md
+  rubric:
+  - Uses the attached facts correctly
+  - Mentions growth, offline mode and first-week churn
+  - Within length
+  checks:
+  - kind: contains_all
+    values:
+    - offline
+  - kind: contains_any
+    values:
+    - 41%
+    - 41 %
+  - kind: words_between
+    min: 120
+    max: 300
+- id: g09
+  category: coding
+  title: CSV parser
+  description: Write a Python function that reads a CSV file and returns the column means for numeric columns, test
+    it in the sandbox on the attached sales.csv, and report the mean of revenue_usd (one decimal).
+  attachments:
+  - sales.csv
+  rubric:
+  - Works on the attachment
+  - Correct mean
+  - Code shown
+  checks:
+  - *id002
+  - kind: csv_number
+    csv: sales.csv
+    column: revenue_usd
+    agg: mean
+    where: {}
+    decimals:
+    - 1
+- id: g10
+  category: mixed
+  title: Support staffing memo
+  description: Analyse the attached support_tickets.csv (tickets per category and mean hours_to_resolve) and write
+    a one-page memo recommending where to add support staff.
+  attachments:
+  - support_tickets.csv
+  rubric:
+  - Numbers correct
+  - Recommendation tied to the data
+  - Memo format
+  checks:
+  - kind: csv_number
+    csv: support_tickets.csv
+    column: hours_to_resolve
+    agg: mean
+    where:
+      category: performance
+    decimals:
+    - 1
+  - kind: words_between
+    min: 150
+    max: 700
+- id: g11
+  category: research
+  title: LangGraph durable execution
+  description: Summarise how LangGraph's durable execution and checkpointing work and what 'durability modes' it
+    offers. 200-400 words with citations to the official docs.
+  attachments: []
+  rubric:
+  - Explains checkpoints and resume
+  - Mentions the durability modes
+  - Cites official LangGraph documentation
+  - Stays within the length limit
+  checks:
+  - kind: contains_any
+    values:
+    - checkpoint
+  - kind: contains_any
+    values:
+    - sync
+    - async
+    - exit
+  - kind: min_citations
+    n: 1
+  - *id001
+  - kind: words_between
+    min: 150
+    max: 500
+- id: g12
+  category: analysis
+  title: Annual revenue
+  description: Using the attached sales.csv, compute total revenue_usd for the year and the region with the highest
+    revenue. Give exact integers.
+  attachments:
+  - sales.csv
+  rubric:
+  - Total is exact
+  - Correct top region
+  - Explains the computation
+  checks:
+  - kind: csv_number
+    csv: sales.csv
+    column: revenue_usd
+    agg: sum
+    where: {}
+    decimals:
+    - 0
+- id: g13
+  category: writing
+  title: Expense policy FAQ
+  description: Write an FAQ with five questions and answers employees ask about the attached expense policy. Keep
+    every number exact.
+  attachments:
+  - policy.md
+  rubric:
+  - Five Q&As
+  - Numbers match the policy
+  - Clear language
+  checks:
+  - kind: contains_all
+    values:
+    - $60
+    - $220
+    - 30 days
+- id: g14
+  category: coding
+  title: Slugify
+  description: 'Write and test a Python slugify(text) function: lowercase, ASCII only, words joined by ''-'', no
+    leading or trailing dashes. Show test cases.'
+  attachments: []
+  rubric:
+  - Correct behaviour on edge cases
+  - Tests shown and passing
+  checks:
+  - *id002
+  - kind: contains_any
+    values:
+    - def slugify
+- id: g15
+  category: mixed
+  title: Sales report with chart
+  description: Using sales.csv, compute revenue per region for the year (exact integers), produce a bar chart file,
+    and write a short report with a 'Summary' section.
+  attachments:
+  - sales.csv
+  rubric:
+  - Correct per-region totals
+  - Chart produced
+  - Summary present
+  checks:
+  - kind: sections
+    values:
+    - Summary
+  - kind: csv_number
+    csv: sales.csv
+    column: revenue_usd
+    agg: sum
+    where:
+      region: north
+    decimals:
+    - 0
+- id: g16
+  category: research
+  title: OPA Rego v1 changes
+  description: What changed in Rego v1 compared with v0 (for example `if` and `contains` keywords)? Give three concrete
+    changes with a citation each.
+  attachments: []
+  rubric:
+  - Lists three correct changes
+  - Each change has a citation
+  - No fabricated syntax
+  checks:
+  - kind: contains_any
+    values:
+    - contains
+  - kind: contains_any
+    values:
+    - if
+  - kind: min_citations
+    n: 2
+  - *id001
+- id: g17
+  category: analysis
+  title: Pro product share
+  description: From sales.csv, what is the total revenue_usd of the pro product across all regions and months? Give
+    the exact integer and the percentage of total revenue (one decimal).
+  attachments:
+  - sales.csv
+  rubric:
+  - Pro total exact
+  - Percentage correct
+  - Clear answer
+  checks:
+  - kind: csv_number
+    csv: sales.csv
+    column: revenue_usd
+    agg: sum
+    where:
+      product: pro
+    decimals:
+    - 0
+- id: g18
+  category: writing
+  title: Release notes
+  description: Write release notes for version 3.4.1 of the Notes iOS app based on the attached product notes. Include
+    a 'Fixes' section.
+  attachments:
+  - product_notes.md
+  rubric:
+  - Mentions the iOS 18.0 launch crash fix
+  - Fixes section present
+  - Does not invent features
+  checks:
+  - kind: sections
+    values:
+    - Fixes
+  - kind: contains_any
+    values:
+    - '18.0'
+    - crash
+- id: g19
+  category: coding
+  title: Retry decorator
+  description: Write a Python decorator that retries a function up to 3 times with exponential backoff on a given
+    exception type. Include a test that simulates two failures then success.
+  attachments: []
+  rubric:
+  - Correct retry semantics
+  - Backoff implemented
+  - Test demonstrates it
+  checks:
+  - *id002
+  - kind: contains_any
+    values:
+    - def retry
+    - retry(
+- id: g20
+  category: mixed
+  title: Latency incident brief
+  description: Read the attached meeting notes and the server_metrics.csv. Write a brief linking the latency discussion
+    to the error spike in the metrics (host, hours, total errors on that host).
+  attachments:
+  - meeting_notes.md
+  - server_metrics.csv
+  rubric:
+  - Correct host and spike hours
+  - Correct total
+  - Links notes and data sensibly
+  checks:
+  - kind: contains_any
+    values:
+    - api-2
+  - kind: csv_number
+    csv: server_metrics.csv
+    column: errors
+    agg: sum
+    where:
+      host: api-2
+    decimals:
+    - 0
+- id: g21
+  category: research
+  title: Model Context Protocol transports
+  description: Describe the transports the Model Context Protocol supports today and which one replaced HTTP+SSE.
+    Cite the specification.
+  attachments: []
+  rubric:
+  - Names stdio and Streamable HTTP
+  - States what replaced HTTP+SSE
+  - Cites the MCP specification
+  checks:
+  - kind: contains_any
+    values:
+    - streamable http
+    - streamable-http
+  - kind: contains_any
+    values:
+    - stdio
+  - kind: min_citations
+    n: 1
+  - *id001
+- id: g22
+  category: analysis
+  title: Ticket resolution time
+  description: Using support_tickets.csv, compute the mean hours_to_resolve per category (one decimal) and identify
+    the slowest category.
+  attachments:
+  - support_tickets.csv
+  rubric:
+  - Means correct
+  - Slowest category correct
+  - Table or list per category
+  checks:
+  - kind: csv_number
+    csv: support_tickets.csv
+    column: hours_to_resolve
+    agg: mean
+    where:
+      category: billing
+    decimals:
+    - 1
+  - kind: csv_number
+    csv: support_tickets.csv
+    column: hours_to_resolve
+    agg: mean
+    where:
+      category: bug
+    decimals:
+    - 1
+- id: g23
+  category: writing
+  title: Executive summary of churn
+  description: Write a one-paragraph executive summary (under 120 words) about first-week churn in the Notes app
+    using the attached notes, ending with one recommendation.
+  attachments:
+  - product_notes.md
+  rubric:
+  - States the 41% figure
+  - One clear recommendation
+  - Under 120 words
+  checks:
+  - kind: contains_any
+    values:
+    - 41%
+  - kind: words_between
+    min: 30
+    max: 130
+- id: g24
+  category: coding
+  title: SQL top customers
+  description: Write a PostgreSQL query that returns the top 5 customers by total order amount from tables customers(id,
+    name) and orders(id, customer_id, amount, created_at) for the last 30 days. Explain the query.
+  attachments: []
+  rubric:
+  - Correct joins and filtering
+  - Correct ordering and limit
+  - Clear explanation
+  checks:
+  - *id002
+  - kind: contains_all
+    values:
+    - limit 5
+  - kind: contains_any
+    values:
+    - interval
+    - now()
+    - current_date
+- id: g25
+  category: mixed
+  title: Pricing research and math
+  description: Research the published price of one managed vector database tier of your choice (cite it), then compute
+    its monthly cost for 3 nodes for 30 days with a short Python calculation in the sandbox.
+  attachments: []
+  rubric:
+  - Price cited from an official page
+  - Calculation shown and correct
+  - Assumptions stated
+  checks:
+  - kind: min_citations
+    n: 1
+  - *id001
+  - *id002
+- id: g26
+  category: research
+  title: PostgreSQL 18 headline features
+  description: List five notable features of PostgreSQL 18 with one sentence each and a citation to the release
+    notes or announcement.
+  attachments: []
+  rubric:
+  - Five features, each real for PG 18
+  - Each has a citation
+  - Concise
+  checks:
+  - kind: contains_any
+    values:
+    - uuidv7
+    - asynchronous i/o
+    - async i/o
+    - virtual generated
+  - kind: min_citations
+    n: 1
+  - *id001
+- id: g27
+  category: analysis
+  title: CSAT by priority
+  description: From support_tickets.csv, report the mean csat for high-priority tickets (two decimals) and the number
+    of high-priority tickets.
+  attachments:
+  - support_tickets.csv
+  rubric:
+  - Mean CSAT correct
+  - Count correct
+  checks:
+  - kind: csv_number
+    csv: support_tickets.csv
+    column: csat
+    agg: mean
+    where:
+      priority: high
+    decimals:
+    - 2
+  - kind: csv_number
+    csv: support_tickets.csv
+    column: csat
+    agg: count
+    where:
+      priority: high
+    decimals:
+    - 0
+- id: g28
+  category: writing
+  title: Incident status update
+  description: Write a customer-facing status update about elevated API latency based on the attached meeting notes.
+    Plain language, no internal names.
+  attachments:
+  - meeting_notes.md
+  rubric:
+  - Mentions elevated latency and the rollback
+  - No internal names
+  - Reassuring and factual
+  checks:
+  - kind: contains_any
+    values:
+    - latency
+  - kind: contains_any
+    values:
+    - rollback
+    - roll back
+    - rolled back
+- id: g29
+  category: coding
+  title: Percentile function
+  description: Write a Python function p95(values) without numpy using linear interpolation, compare it with numpy.percentile
+    on 1000 random numbers in the sandbox, and report the max absolute difference.
+  attachments: []
+  rubric:
+  - Correct algorithm
+  - Comparison executed
+  - Reports the difference
+  checks:
+  - *id002
+  - kind: contains_any
+    values:
+    - percentile
+- id: g30
+  category: mixed
+  title: Policy checker script
+  description: Write a Python function that checks an expense claim against the attached expense policy (meals,
+    hotels, equipment approval, 30-day filing), test it on three claims in the sandbox, and explain the rules it
+    encodes.
+  attachments:
+  - policy.md
+  rubric:
+  - Encodes the policy correctly
+  - Tests run
+  - Rules explained
+  checks:
+  - *id002
+  - kind: contains_all
+    values:
+    - '30'
+- id: g31
+  category: research
+  title: Prompt injection defences
+  description: Summarise three widely recommended defences against indirect prompt injection in LLM agents, citing
+    at least two independent sources.
+  attachments: []
+  rubric:
+  - Three distinct, accurate defences
+  - At least two independent sources
+  - Practical, not generic
+  checks:
+  - kind: min_citations
+    n: 2
+  - *id001
+  - kind: contains_any
+    values:
+    - untrusted
+    - privilege
+    - approval
+    - human
+- id: g32
+  category: analysis
+  title: Error spike
+  description: Using server_metrics.csv, find the host and hours with the highest total errors and report that host's
+    total errors over all hours (exact integer).
+  attachments:
+  - server_metrics.csv
+  rubric:
+  - Identifies api-2
+  - Exact total
+  - Mentions the spike hours
+  checks:
+  - kind: contains_any
+    values:
+    - api-2
+  - kind: csv_number
+    csv: server_metrics.csv
+    column: errors
+    agg: sum
+    where:
+      host: api-2
+    decimals:
+    - 0
+- id: g33
+  category: writing
+  title: Onboarding guide outline
+  description: 'Write a markdown outline for a new-engineer onboarding guide for a multi-agent platform, with at
+    least these sections: Architecture, Running locally, Adding a tool.'
+  attachments: []
+  rubric:
+  - Has the required sections
+  - Logical structure
+  - Actionable bullets
+  checks:
+  - kind: sections
+    values:
+    - Architecture
+    - Running locally
+    - Adding a tool
+- id: g34
+  category: coding
+  title: JSON schema validation
+  description: Write a small Python script that validates a dict against a JSON-schema-like spec of required keys
+    and types (no third-party libs), with two passing and one failing example run in the sandbox.
+  attachments: []
+  rubric:
+  - Validator works
+  - Examples run with expected results
+  checks:
+  - *id002
+- id: g35
+  category: mixed
+  title: Churn analysis plan
+  description: 'Using the attached product notes, propose an analysis plan for first-week churn: the hypotheses,
+    the metrics to compute, and a SQL sketch for one metric.'
+  attachments:
+  - product_notes.md
+  rubric:
+  - Grounded in the 41% churn fact
+  - Testable hypotheses
+  - Reasonable SQL
+  checks:
+  - kind: contains_any
+    values:
+    - 41%
+  - *id002
+- id: g36
+  category: research
+  title: Taskiq vs Celery
+  description: Compare Taskiq and Celery for an asyncio Python service in a short table (async support, brokers,
+    maturity) with sources.
+  attachments: []
+  rubric:
+  - Accurate comparison on the three dimensions
+  - Cites both projects
+  - Table format
+  checks:
+  - kind: contains_all
+    values:
+    - taskiq
+    - celery
+  - kind: contains_any
+    values:
+    - '|'
+  - kind: min_citations
+    n: 2
+  - *id001
+- id: g37
+  category: analysis
+  title: Worker CPU
+  description: From server_metrics.csv, what is the mean cpu_pct of worker-1 (one decimal), and its maximum cpu_pct?
+    Produce a small chart of worker-1 CPU over time as a file if you can.
+  attachments:
+  - server_metrics.csv
+  rubric:
+  - Mean correct
+  - Max correct
+  - Chart produced or explained
+  checks:
+  - kind: csv_number
+    csv: server_metrics.csv
+    column: cpu_pct
+    agg: mean
+    where:
+      host: worker-1
+    decimals:
+    - 1
+  - kind: csv_number
+    csv: server_metrics.csv
+    column: cpu_pct
+    agg: max
+    where:
+      host: worker-1
+    decimals:
+    - 1
+- id: g38
+  category: writing
+  title: Policy comparison table
+  description: From the attached expense policy, produce a table of each rule with its limit and whether approval
+    or receipts are needed.
+  attachments:
+  - policy.md
+  rubric:
+  - Every rule represented
+  - Limits exact
+  - Table format
+  checks:
+  - kind: contains_any
+    values:
+    - '|'
+  - kind: contains_all
+    values:
+    - $500
+- id: g39
+  category: coding
+  title: Bash to Python
+  description: 'Translate this shell pipeline into idiomatic Python and test it on a small sample: `cat log.txt
+    | grep ERROR | cut -d'' '' -f2 | sort | uniq -c | sort -rn | head -3`.'
+  attachments: []
+  rubric:
+  - Equivalent behaviour
+  - Idiomatic Python
+  - Tested
+  checks:
+  - *id002
+  - kind: contains_any
+    values:
+    - counter
+    - collections
+- id: g40
+  category: analysis
+  title: Hybrid query latency
+  description: From query_latency.csv, which database has the lowest mean p50_ms for query_type hybrid? Report its
+    value with one decimal.
+  attachments:
+  - query_latency.csv
+  rubric:
+  - Correct database
+  - Correct value
+  checks:
+  - kind: contains_any
+    values:
+    - qdrant
+    - milvus
+    - weaviate
+    - pgvector

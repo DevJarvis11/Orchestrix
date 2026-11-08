@@ -2,6 +2,7 @@
 
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.runnables import RunnableLambda
 
 from orchestrix_agents.llm import (
     StructuredOutputError,
@@ -64,6 +65,19 @@ def test_a2_served_model_prefers_litellm_group_header() -> None:
 REVIEW = Review(verdict="approve", score=8, feedback="ok")
 
 
+class JsonSchemaParserFailureModel(ScriptedChatModel):
+    """Models that accept response_format but emit prose cause LangChain's parser to raise."""
+
+    def with_structured_output(self, schema, *, include_raw=False, **kwargs):  # type: ignore[override, no-untyped-def]
+        if kwargs["method"] == "json_schema":
+
+            def reject(_messages):  # type: ignore[no-untyped-def]
+                return schema.model_validate({"verdict": "not-a-valid-review"})
+
+            return RunnableLambda(reject)
+        return super().with_structured_output(schema, include_raw=include_raw, **kwargs)
+
+
 async def test_structured_output_parses_first_reply() -> None:
     result = await invoke_structured(
         ScriptedChatModel(script=[REVIEW]), Review, [HumanMessage("x")]
@@ -84,6 +98,13 @@ async def test_structured_output_repairs_once_with_the_error() -> None:
     assert result.value == REVIEW
     assert "did not match the required JSON schema" in str(model.calls[1][-1].content)
     assert result.usage.tokens == 300  # both calls are paid for
+
+
+async def test_structured_output_uses_function_calling_after_json_schema_parser_failure() -> None:
+    result = await invoke_structured(
+        JsonSchemaParserFailureModel(script=[REVIEW]), Review, [HumanMessage("x")]
+    )
+    assert result.value == REVIEW
 
 
 async def test_structured_output_raises_after_second_failure() -> None:

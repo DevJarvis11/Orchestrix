@@ -1,0 +1,892 @@
+# Planted defects (SPEC 20.2): 30 subtask outputs with one known error each. The reviewer
+# catches a case when its verdict is not approve (or score < 6) and its feedback or issues
+# mention one of `must_mention`.
+version: 1
+cases:
+- id: d01
+  defect: unsourced_claim
+  subtask:
+    key: s1
+    description: Research qdrant and summarise its key strengths with sources for every claim.
+    specialist: research
+    expected_output: markdown
+    acceptance_criteria:
+    - Every factual claim cites a source URL
+    - Covers key strengths
+    complexity: low
+  result:
+    key: s1
+    output: '## Qdrant strengths
+
+
+      - It is open source and actively maintained [https://github.com/example/qdrant].
+
+      - Qdrant is 4x faster than Milvus on every benchmark and uses half the memory.
+
+      - Good documentation [https://example.org/qdrant/docs].'
+    sources:
+    - https://github.com/example/qdrant
+    - https://example.org/qdrant/docs
+    confidence: 0.8
+  must_mention:
+  - source
+  - cite
+  - citation
+  - unsourced
+  - unsupported
+  - evidence
+  - reference
+- id: d02
+  defect: unsourced_claim
+  subtask:
+    key: s1
+    description: Research pgvector and summarise its key strengths with sources for every claim.
+    specialist: research
+    expected_output: markdown
+    acceptance_criteria:
+    - Every factual claim cites a source URL
+    - Covers key strengths
+    complexity: low
+  result:
+    key: s1
+    output: '## Pgvector strengths
+
+
+      - It is open source and actively maintained [https://github.com/example/pgvector].
+
+      - pgvector''s HNSW index is always more accurate than IVFFlat at the same latency, by about 15 points of recall.
+
+      - Good documentation [https://example.org/pgvector/docs].'
+    sources:
+    - https://github.com/example/pgvector
+    - https://example.org/pgvector/docs
+    confidence: 0.8
+  must_mention:
+  - source
+  - cite
+  - citation
+  - unsourced
+  - unsupported
+  - evidence
+  - reference
+- id: d03
+  defect: unsourced_claim
+  subtask:
+    key: s1
+    description: Research weaviate and summarise its key strengths with sources for every claim.
+    specialist: research
+    expected_output: markdown
+    acceptance_criteria:
+    - Every factual claim cites a source URL
+    - Covers key strengths
+    complexity: low
+  result:
+    key: s1
+    output: '## Weaviate strengths
+
+
+      - It is open source and actively maintained [https://github.com/example/weaviate].
+
+      - Weaviate is used by over 60% of Fortune 500 companies.
+
+      - Good documentation [https://example.org/weaviate/docs].'
+    sources:
+    - https://github.com/example/weaviate
+    - https://example.org/weaviate/docs
+    confidence: 0.8
+  must_mention:
+  - source
+  - cite
+  - citation
+  - unsourced
+  - unsupported
+  - evidence
+  - reference
+- id: d04
+  defect: unsourced_claim
+  subtask:
+    key: s1
+    description: Research milvus and summarise its key strengths with sources for every claim.
+    specialist: research
+    expected_output: markdown
+    acceptance_criteria:
+    - Every factual claim cites a source URL
+    - Covers key strengths
+    complexity: low
+  result:
+    key: s1
+    output: '## Milvus strengths
+
+
+      - It is open source and actively maintained [https://github.com/example/milvus].
+
+      - Milvus handles 10 billion vectors on a single node with sub-millisecond latency.
+
+      - Good documentation [https://example.org/milvus/docs].'
+    sources:
+    - https://github.com/example/milvus
+    - https://example.org/milvus/docs
+    confidence: 0.8
+  must_mention:
+  - source
+  - cite
+  - citation
+  - unsourced
+  - unsupported
+  - evidence
+  - reference
+- id: d05
+  defect: unsourced_claim
+  subtask:
+    key: s1
+    description: Research langgraph and summarise its key strengths with sources for every claim.
+    specialist: research
+    expected_output: markdown
+    acceptance_criteria:
+    - Every factual claim cites a source URL
+    - Covers key strengths
+    complexity: low
+  result:
+    key: s1
+    output: '## Langgraph strengths
+
+
+      - It is open source and actively maintained [https://github.com/example/langgraph].
+
+      - LangGraph checkpoints add less than 1 ms of overhead per step in all deployments.
+
+      - Good documentation [https://example.org/langgraph/docs].'
+    sources:
+    - https://github.com/example/langgraph
+    - https://example.org/langgraph/docs
+    confidence: 0.8
+  must_mention:
+  - source
+  - cite
+  - citation
+  - unsourced
+  - unsupported
+  - evidence
+  - reference
+- id: d06
+  defect: unsourced_claim
+  subtask:
+    key: s1
+    description: Research opa and summarise its key strengths with sources for every claim.
+    specialist: research
+    expected_output: markdown
+    acceptance_criteria:
+    - Every factual claim cites a source URL
+    - Covers key strengths
+    complexity: low
+  result:
+    key: s1
+    output: '## Opa strengths
+
+
+      - It is open source and actively maintained [https://github.com/example/opa].
+
+      - OPA evaluates 1 million policies per second on a laptop.
+
+      - Good documentation [https://example.org/opa/docs].'
+    sources:
+    - https://github.com/example/opa
+    - https://example.org/opa/docs
+    confidence: 0.8
+  must_mention:
+  - source
+  - cite
+  - citation
+  - unsourced
+  - unsupported
+  - evidence
+  - reference
+- id: d07
+  defect: unsourced_claim
+  subtask:
+    key: s1
+    description: Research injection and summarise its key strengths with sources for every claim.
+    specialist: research
+    expected_output: markdown
+    acceptance_criteria:
+    - Every factual claim cites a source URL
+    - Covers key strengths
+    complexity: low
+  result:
+    key: s1
+    output: '## Injection strengths
+
+
+      - It is open source and actively maintained [https://github.com/example/injection].
+
+      - Most prompt injection attacks (92%) come through PDF attachments.
+
+      - Good documentation [https://example.org/injection/docs].'
+    sources:
+    - https://github.com/example/injection
+    - https://example.org/injection/docs
+    confidence: 0.8
+  must_mention:
+  - source
+  - cite
+  - citation
+  - unsourced
+  - unsupported
+  - evidence
+  - reference
+- id: d08
+  defect: unsourced_claim
+  subtask:
+    key: s1
+    description: Research taskiq and summarise its key strengths with sources for every claim.
+    specialist: research
+    expected_output: markdown
+    acceptance_criteria:
+    - Every factual claim cites a source URL
+    - Covers key strengths
+    complexity: low
+  result:
+    key: s1
+    output: '## Taskiq strengths
+
+
+      - It is open source and actively maintained [https://github.com/example/taskiq].
+
+      - Taskiq is twice as fast as Celery for every workload.
+
+      - Good documentation [https://example.org/taskiq/docs].'
+    sources:
+    - https://github.com/example/taskiq
+    - https://example.org/taskiq/docs
+    confidence: 0.8
+  must_mention:
+  - source
+  - cite
+  - citation
+  - unsourced
+  - unsupported
+  - evidence
+  - reference
+- id: d09
+  defect: wrong_number
+  subtask:
+    key: s2
+    description: 'Inputs: north revenue 1200, south 800, east 950, west 1050. Report the total revenue. Show the
+      calculation.'
+    specialist: data_analyst
+    expected_output: markdown
+    acceptance_criteria:
+    - The number is computed correctly from the inputs
+    - Calculation shown
+    complexity: low
+  result:
+    key: s2
+    output: 'Total revenue is **3900**.
+
+
+      Calculation: summed the inputs and applied the formula.'
+    sources:
+    - attachment:inputs
+    confidence: 0.8
+  must_mention:
+  - incorrect
+  - wrong
+  - error
+  - miscalcul
+  - inaccurate
+  - does not match
+  - doesn't match
+  - should be
+  - '4000'
+- id: d10
+  defect: wrong_number
+  subtask:
+    key: s2
+    description: 'Inputs: latencies 10, 20, 30, 40 ms. Report the mean latency. Show the calculation.'
+    specialist: data_analyst
+    expected_output: markdown
+    acceptance_criteria:
+    - The number is computed correctly from the inputs
+    - Calculation shown
+    complexity: low
+  result:
+    key: s2
+    output: 'Mean latency: **30 ms**.
+
+
+      Calculation: summed the inputs and applied the formula.'
+    sources:
+    - attachment:inputs
+    confidence: 0.8
+  must_mention:
+  - incorrect
+  - wrong
+  - error
+  - miscalcul
+  - inaccurate
+  - does not match
+  - doesn't match
+  - should be
+  - '25'
+- id: d11
+  defect: wrong_number
+  subtask:
+    key: s2
+    description: 'Inputs: 45 of 180 tickets were high priority. Report the share of high-priority tickets as a percentage.
+      Show the calculation.'
+    specialist: data_analyst
+    expected_output: markdown
+    acceptance_criteria:
+    - The number is computed correctly from the inputs
+    - Calculation shown
+    complexity: low
+  result:
+    key: s2
+    output: 'High-priority share: **35%**.
+
+
+      Calculation: summed the inputs and applied the formula.'
+    sources:
+    - attachment:inputs
+    confidence: 0.8
+  must_mention:
+  - incorrect
+  - wrong
+  - error
+  - miscalcul
+  - inaccurate
+  - does not match
+  - doesn't match
+  - should be
+  - '25'
+- id: d12
+  defect: wrong_number
+  subtask:
+    key: s2
+    description: 'Inputs: qps samples 961, 965, 950. Report the mean qps with one decimal. Show the calculation.'
+    specialist: data_analyst
+    expected_output: markdown
+    acceptance_criteria:
+    - The number is computed correctly from the inputs
+    - Calculation shown
+    complexity: low
+  result:
+    key: s2
+    output: 'Mean qps = **962.0**.
+
+
+      Calculation: summed the inputs and applied the formula.'
+    sources:
+    - attachment:inputs
+    confidence: 0.8
+  must_mention:
+  - incorrect
+  - wrong
+  - error
+  - miscalcul
+  - inaccurate
+  - does not match
+  - doesn't match
+  - should be
+  - '958.7'
+- id: d13
+  defect: wrong_number
+  subtask:
+    key: s2
+    description: 'Inputs: 3 nodes at $0.25 per hour for 30 days. Report the monthly cost. Show the calculation.'
+    specialist: data_analyst
+    expected_output: markdown
+    acceptance_criteria:
+    - The number is computed correctly from the inputs
+    - Calculation shown
+    complexity: low
+  result:
+    key: s2
+    output: 'Monthly cost: **$180**.
+
+
+      Calculation: summed the inputs and applied the formula.'
+    sources:
+    - attachment:inputs
+    confidence: 0.8
+  must_mention:
+  - incorrect
+  - wrong
+  - error
+  - miscalcul
+  - inaccurate
+  - does not match
+  - doesn't match
+  - should be
+  - '540'
+- id: d14
+  defect: wrong_number
+  subtask:
+    key: s2
+    description: 'Inputs: CSAT scores 5, 4, 4, 3, 2. Report the median. Show the calculation.'
+    specialist: data_analyst
+    expected_output: markdown
+    acceptance_criteria:
+    - The number is computed correctly from the inputs
+    - Calculation shown
+    complexity: low
+  result:
+    key: s2
+    output: 'Median CSAT: **4.5**.
+
+
+      Calculation: summed the inputs and applied the formula.'
+    sources:
+    - attachment:inputs
+    confidence: 0.8
+  must_mention:
+  - incorrect
+  - wrong
+  - error
+  - miscalcul
+  - inaccurate
+  - does not match
+  - doesn't match
+  - should be
+  - '4'
+- id: d15
+  defect: wrong_number
+  subtask:
+    key: s2
+    description: 'Inputs: errors per hour 0, 1, 6, 7, 0. Report the total errors. Show the calculation.'
+    specialist: data_analyst
+    expected_output: markdown
+    acceptance_criteria:
+    - The number is computed correctly from the inputs
+    - Calculation shown
+    complexity: low
+  result:
+    key: s2
+    output: 'Total errors: **12**.
+
+
+      Calculation: summed the inputs and applied the formula.'
+    sources:
+    - attachment:inputs
+    confidence: 0.8
+  must_mention:
+  - incorrect
+  - wrong
+  - error
+  - miscalcul
+  - inaccurate
+  - does not match
+  - doesn't match
+  - should be
+  - '14'
+- id: d16
+  defect: missing_section
+  subtask:
+    key: s3
+    description: Write a meeting summary with sections 'Decisions' and 'Action items'.
+    specialist: writer
+    expected_output: markdown
+    acceptance_criteria:
+    - Has a Decisions section
+    - Has an Action items section with owners
+    complexity: low
+  result:
+    key: s3
+    output: '## Decisions
+
+      - Roll back the cache change.
+
+      - Freeze schema migrations.'
+    sources:
+    - s1.output
+    confidence: 0.8
+  must_mention:
+  - missing
+  - omit
+  - absent
+  - lacks
+  - not included
+  - does not include
+  - doesn't include
+  - 'no '
+  - action items
+- id: d17
+  defect: missing_section
+  subtask:
+    key: s3
+    description: Write release notes with 'Features' and 'Fixes' sections.
+    specialist: writer
+    expected_output: markdown
+    acceptance_criteria:
+    - Has Features
+    - Has Fixes
+    complexity: low
+  result:
+    key: s3
+    output: '## Features
+
+      - Shared notebooks beta.'
+    sources:
+    - s1.output
+    confidence: 0.8
+  must_mention:
+  - missing
+  - omit
+  - absent
+  - lacks
+  - not included
+  - does not include
+  - doesn't include
+  - 'no '
+  - fixes
+- id: d18
+  defect: missing_section
+  subtask:
+    key: s3
+    description: Write a report with 'Findings', 'Risks' and 'Recommendation' sections.
+    specialist: writer
+    expected_output: markdown
+    acceptance_criteria:
+    - Findings, Risks and Recommendation sections present
+    complexity: low
+  result:
+    key: s3
+    output: '## Findings
+
+      Latency improved.
+
+
+      ## Recommendation
+
+      Adopt pgvector.'
+    sources:
+    - s1.output
+    confidence: 0.8
+  must_mention:
+  - missing
+  - omit
+  - absent
+  - lacks
+  - not included
+  - does not include
+  - doesn't include
+  - 'no '
+  - risks
+- id: d19
+  defect: missing_section
+  subtask:
+    key: s3
+    description: Write an FAQ with exactly five questions and answers.
+    specialist: writer
+    expected_output: markdown
+    acceptance_criteria:
+    - Five Q&A pairs
+    complexity: low
+  result:
+    key: s3
+    output: '**Q1. Meal limit?** $60/day.
+
+
+      **Q2. Hotel limit?** $220/night.
+
+
+      **Q3. Filing deadline?** 30 days.'
+    sources:
+    - s1.output
+    confidence: 0.8
+  must_mention:
+  - missing
+  - omit
+  - absent
+  - lacks
+  - not included
+  - does not include
+  - doesn't include
+  - 'no '
+  - five
+- id: d20
+  defect: missing_section
+  subtask:
+    key: s3
+    description: Write a design doc with 'Goals', 'Non-goals' and 'Design' sections.
+    specialist: writer
+    expected_output: markdown
+    acceptance_criteria:
+    - Goals, Non-goals and Design present
+    complexity: low
+  result:
+    key: s3
+    output: '## Goals
+
+      Fast search.
+
+
+      ## Design
+
+      Use HNSW.'
+    sources:
+    - s1.output
+    confidence: 0.8
+  must_mention:
+  - missing
+  - omit
+  - absent
+  - lacks
+  - not included
+  - does not include
+  - doesn't include
+  - 'no '
+  - non-goals
+- id: d21
+  defect: missing_section
+  subtask:
+    key: s3
+    description: Produce a comparison covering Qdrant, Milvus, Weaviate and pgvector.
+    specialist: writer
+    expected_output: markdown
+    acceptance_criteria:
+    - All four databases are covered
+    complexity: low
+  result:
+    key: s3
+    output: '| DB | License |
+
+      |---|---|
+
+      | Qdrant | Apache-2.0 |
+
+      | Milvus | Apache-2.0 |
+
+      | pgvector | PostgreSQL |'
+    sources:
+    - s1.output
+    confidence: 0.8
+  must_mention:
+  - missing
+  - omit
+  - absent
+  - lacks
+  - not included
+  - does not include
+  - doesn't include
+  - 'no '
+  - weaviate
+- id: d22
+  defect: fabricated_source
+  subtask:
+    key: s1
+    description: State one fact about the database's license or origin with an accurate supporting source.
+    specialist: research
+    expected_output: markdown
+    acceptance_criteria:
+    - The claim is accurate
+    - The cited source supports the claim
+    complexity: low
+  result:
+    key: s1
+    output: Qdrant's license is MIT [https://www.postgresql.org/about/licence/].
+    sources:
+    - https://www.postgresql.org/about/licence/
+    confidence: 0.8
+  must_mention:
+  - fabricat
+  - invented
+  - not a real
+  - unverif
+  - does not exist
+  - not support
+  - mismatch
+  - doesn't support
+  - unrelated
+- id: d23
+  defect: fabricated_source
+  subtask:
+    key: s1
+    description: State one fact about the database's license or origin with an accurate supporting source.
+    specialist: research
+    expected_output: markdown
+    acceptance_criteria:
+    - The claim is accurate
+    - The cited source supports the claim
+    complexity: low
+  result:
+    key: s1
+    output: According to the official Milvus docs, Milvus requires Kubernetes for all deployments [https://en.wikipedia.org/wiki/Banana].
+    sources:
+    - https://en.wikipedia.org/wiki/Banana
+    confidence: 0.8
+  must_mention:
+  - fabricat
+  - invented
+  - not a real
+  - unverif
+  - does not exist
+  - not support
+  - mismatch
+  - doesn't support
+  - unrelated
+- id: d24
+  defect: fabricated_source
+  subtask:
+    key: s1
+    description: State one fact about the database's license or origin with an accurate supporting source.
+    specialist: research
+    expected_output: markdown
+    acceptance_criteria:
+    - The claim is accurate
+    - The cited source supports the claim
+    complexity: low
+  result:
+    key: s1
+    output: pgvector was created by Google in 2015 [https://github.com/pgvector/pgvector/blob/master/README.md].
+    sources:
+    - https://github.com/pgvector/pgvector/blob/master/README.md
+    confidence: 0.8
+  must_mention:
+  - fabricat
+  - invented
+  - not a real
+  - unverif
+  - does not exist
+  - not support
+  - mismatch
+  - doesn't support
+  - unrelated
+- id: d25
+  defect: off_topic
+  subtask:
+    key: s4
+    description: Summarise the expense policy limits for meals and hotels.
+    specialist: writer
+    expected_output: markdown
+    acceptance_criteria:
+    - Answers the question asked
+    complexity: low
+  result:
+    key: s4
+    output: Our cafeteria serves lunch from 12 to 2 pm and has a vegetarian option every day.
+    sources:
+    - attachment:notes
+    confidence: 0.8
+  must_mention:
+  - off-topic
+  - off topic
+  - irrelevant
+  - does not address
+  - doesn't address
+  - unrelated
+  - not answer
+- id: d26
+  defect: off_topic
+  subtask:
+    key: s4
+    description: Explain how pgvector HNSW indexes work.
+    specialist: writer
+    expected_output: markdown
+    acceptance_criteria:
+    - Answers the question asked
+    complexity: low
+  result:
+    key: s4
+    output: PostgreSQL was first released in 1996 and is developed by a global community.
+    sources:
+    - attachment:notes
+    confidence: 0.8
+  must_mention:
+  - off-topic
+  - off topic
+  - irrelevant
+  - does not address
+  - doesn't address
+  - unrelated
+  - not answer
+- id: d27
+  defect: off_topic
+  subtask:
+    key: s4
+    description: List the action items from the meeting notes with owners.
+    specialist: writer
+    expected_output: markdown
+    acceptance_criteria:
+    - Answers the question asked
+    complexity: low
+  result:
+    key: s4
+    output: The weather on the day of the meeting was sunny and the room was booked for an hour.
+    sources:
+    - attachment:notes
+    confidence: 0.8
+  must_mention:
+  - off-topic
+  - off topic
+  - irrelevant
+  - does not address
+  - doesn't address
+  - unrelated
+  - not answer
+- id: d28
+  defect: format
+  subtask:
+    key: s5
+    description: Return the per-region totals as a markdown table with columns region and total.
+    specialist: data_analyst
+    expected_output: table
+    acceptance_criteria:
+    - Output is valid table
+    complexity: low
+  result:
+    key: s5
+    output: north had 1200, south had 800, east had 950 and west had 1050.
+    sources: []
+    confidence: 0.8
+  must_mention:
+  - format
+  - table
+  - json
+  - markdown
+  - structure
+  - table
+- id: d29
+  defect: format
+  subtask:
+    key: s5
+    description: 'Return a JSON object {"mean": number, "max": number} for the series 1, 2, 3.'
+    specialist: data_analyst
+    expected_output: json
+    acceptance_criteria:
+    - Output is valid json
+    complexity: low
+  result:
+    key: s5
+    output: The mean is 2 and the max is 3.
+    sources: []
+    confidence: 0.8
+  must_mention:
+  - format
+  - table
+  - json
+  - markdown
+  - structure
+  - json
+- id: d30
+  defect: format
+  subtask:
+    key: s5
+    description: Return Python code in a fenced code block implementing fib(n).
+    specialist: coder
+    expected_output: code
+    acceptance_criteria:
+    - Output is valid code
+    complexity: low
+  result:
+    key: s5
+    output: To compute Fibonacci numbers, add the previous two numbers repeatedly starting from 0 and 1.
+    sources: []
+    confidence: 0.8
+  must_mention:
+  - format
+  - table
+  - json
+  - markdown
+  - structure
+  - code

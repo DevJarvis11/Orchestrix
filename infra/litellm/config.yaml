@@ -2,8 +2,14 @@
 # Checked against the LiteLLM 1.106.2 source (litellm_proxy and ollama_chat providers, Router fallbacks).
 #
 # Agents ask for a role; orchestrix_agents.llm resolves the role to one of these model names
-# (task override -> admin default -> settings default). The router falls back from the VPN model
-# to host Ollama when the Yotta gateway is unreachable.
+# (task override -> admin default -> ORCHESTRIX_DEFAULT_MODELS). The router falls back from the
+# VPN model to host Ollama when the Yotta gateway is unreachable (off with
+# ORCHESTRIX_LOCAL_FALLBACK=false).
+#
+# This file is the one place a model is defined: add an entry (with its prices) here, then point
+# ORCHESTRIX_DEFAULT_MODELS (or a task / admin override) at its model_name. Nothing in the app
+# names a model or a model family. Prices are notional for self-hosted models (improvement 8);
+# the gateway returns each call's cost in `x-litellm-response-cost`.
 
 model_list:
   # Primary: gpt-oss-120b on the Yotta vLLM cluster, reached through its own LiteLLM gateway over VPN.
@@ -12,19 +18,23 @@ model_list:
       model: litellm_proxy/gpt-oss-120b
       api_base: os.environ/REMOTE_LLM_BASE_URL
       api_key: os.environ/REMOTE_LLM_API_KEY
-      timeout: 120
+      timeout: 180  # a specialist turn with fetched pages and reasoning can take minutes
     model_info:
       mode: chat
+      input_cost_per_token: 1.5e-07   # notional: USD 0.15 per million tokens
+      output_cost_per_token: 6.0e-07  # notional: USD 0.60 per million tokens
       max_input_tokens: 131072
       supports_function_calling: true
       supports_response_schema: true
       supports_reasoning: true
-      # Only the remote model cools down: one timeout or connection failure benches it for five
-      # minutes, so a dropped VPN costs one timeout per window instead of one per call. Named
-      # exception types are required; a generic allowed_fails would be ignored on a
+      # Only the remote model cools down, and only on outage-shaped failures (a dropped VPN:
+      # connection errors surface as 5xx/502/503): it is benched for five minutes so the router
+      # goes straight to the fallback. A slow answer is not an outage: timeouts never bench it
+      # (one 120 s timeout used to bench the only VPN model and fail every later call with 429).
+      # Named exception types are required; a generic allowed_fails would be ignored on a
       # single-deployment group (LiteLLM 1.106.2 router_utils/cooldown_handlers.py).
       allowed_fails_policy:
-        TimeoutErrorAllowedFails: 0
+        TimeoutErrorAllowedFails: 1000
         InternalServerErrorAllowedFails: 0
         ServiceUnavailableErrorAllowedFails: 0
         BadGatewayErrorAllowedFails: 0
@@ -44,6 +54,8 @@ model_list:
       timeout: 300
     model_info:
       mode: chat
+      input_cost_per_token: 5.0e-08   # notional
+      output_cost_per_token: 2.0e-07  # notional
       max_input_tokens: 16384
       supports_function_calling: true
       supports_response_schema: true
@@ -60,6 +72,7 @@ model_list:
     model_info:
       mode: embedding
       output_vector_size: 2560
+      input_cost_per_token: 1.0e-08   # notional
 
   # Reranker for memory retrieval (M6). Local fastembed ONNX is the fallback, in-process.
   - model_name: rerank
@@ -70,6 +83,7 @@ model_list:
       timeout: 30
     model_info:
       mode: rerank
+      input_cost_per_token: 1.0e-08   # notional
 
   # Never reachable (connection refused): `make gateway-check` uses it to prove the fallback path.
   # Hidden from the model picker by the app.
@@ -84,10 +98,15 @@ router_settings:
   # No router-wide allowed_fails: it would switch LiteLLM to legacy cooldowns and bench the
   # single local fallback too. Cooldown is configured on the remote deployment only.
   num_retries: 1
-  timeout: 120
+  timeout: 180  # worst case per call: 180 s x 2 attempts; the app waits longer (GATEWAY_TIMEOUT)
   fallbacks:
     - gpt-oss-120b: ["qwen3-8b-local"]
     - fallback-probe: ["qwen3-8b-local"]
+
+litellm_settings:
+  # The app sends per-role parameters (e.g. reasoning_effort) to whichever model a role resolves
+  # to; parameters a model does not support are dropped here instead of failing the call.
+  drop_params: true
 
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY

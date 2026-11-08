@@ -1,0 +1,45 @@
+{
+  "query": "pgvector license github benchmarks",
+  "results": [
+    {
+      "snippet": "A lightweight, fast, flexible, and easy-to-use benchmarking tool dedicated to pgvector. - pgvectorBench/pgvectorBench.",
+      "title": "pgvectorBench/pgvectorBench: A lightweight, fast, flexible ... - GitHub",
+      "url": "https://github.com/pgvectorBench/pgvectorBench"
+    },
+    {
+      "snippet": "Open-source vector similarity search for Postgres. Contribute to pgvector/pgvector development by creating an account on GitHub.",
+      "title": "pgvector/pgvector: Open-source vector similarity search for Postgres",
+      "url": "https://github.com/pgvector/pgvector"
+    },
+    {
+      "snippet": "A comprehensive benchmarking tool for PostgreSQL vector search extensions. Compare performance across pgvector, VectorChord, edb_vectorplus, and pgpu (GPU-\u00a0...",
+      "title": "EnterpriseDB/vsbt: Vector-search benchmark toolkit - GitHub",
+      "url": "https://github.com/EnterpriseDB/vsbt"
+    },
+    {
+      "snippet": "Postgres extension for vector search (DiskANN), complements pgvector for performance and scale. Postgres OSS licensed. - timescale/pgvectorscale.",
+      "title": "GitHub - timescale/pgvectorscale: Postgres extension for vector ...",
+      "url": "https://github.com/timescale/pgvectorscale"
+    },
+    {
+      "snippet": "18 Jul 2026 ... Wolbarg v0.4.0 benchmarks: SQLite and PostgreSQL startup, bulk insert, recall, embedding cache, dedupe, subscribe, and multi-writer\u00a0...",
+      "title": "Wolbarg Benchmarks \u2014 SQLite & PostgreSQL Performance (v0.4.0)",
+      "url": "https://wolbarg.com/benchmarks"
+    },
+    {
+      "snippet": "27 May 2026 ... GitHub: https://github.com/getomnico/omni. Benchmark artifacts: https ... pg_textsearch: modern BM25 ranked text search with a permissive license.",
+      "title": "I benchmarked Postgres + BM25 + pgvector on EnterpriseRAG ...",
+      "url": "https://www.reddit.com/r/Rag/comments/1tpebrh/i_benchmarked_postgres_bm25_pgvector_on/"
+    },
+    {
+      "snippet": "18 Oct 2026 ... pgvector is listed under postgres extensions (deployment type: database extension). Open source; no price. Hosting cost depends on the Postgres\u00a0...",
+      "title": "pgvector: pricing, limits, hybrid search and features (2026)",
+      "url": "https://www.developersdigest.tech/vector-databases/pgvector"
+    },
+    {
+      "snippet": "We benchmarked four leading vector database systems\u2013FAISS, Milvus, Qdrant, and pgvector\u2013using CIFAR-10 and STL-10 image embeddings scaled from 100 to 10,000\u00a0...",
+      "title": "A unified benchmarking framework for vector databases in scalable ...",
+      "url": "https://www.frontiersin.org/journals/computer-science/articles/10.3389/fcomp.2026.1819991/full"
+    }
+  ]
+}
