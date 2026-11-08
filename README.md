@@ -36,13 +36,33 @@ The full step-by-step guide, including how to switch models and troubleshoot, is
 
 Requirements: WSL Ubuntu 22.04, Docker, uv, Node 26 with pnpm. Copy nothing by hand: `make env` writes `.env` with random secrets.
 
+First time only:
+
 ```bash
-make dev            # core stack: Postgres, Redis, S3, OPA, LiteLLM, API, worker, scheduler, MCP servers, SearXNG
-make migrate        # Alembic + LangGraph checkpointer tables
-make seed           # demo users (two teams), the showcase lesson memory, demo_data tables
-make dev-token      # a dev JWT (EMAIL=, TEAM=, ROLES=)
-pnpm --filter @orchestrix/web dev   # the UI on http://localhost:5173
+uv sync && pnpm install   # Python and Node dependencies
+make dev                  # start the core stack and wait until healthy
+make migrate              # Alembic + LangGraph checkpointer tables
+make seed                 # demo users (two teams), the showcase lesson memory, demo_data tables
 ```
+
+Every time:
+
+```bash
+make dev                  # core stack: Postgres, Redis, S3, OPA, LiteLLM, API, worker, scheduler, MCP servers, SearXNG
+make dev-token            # print a dev JWT to paste on the sign-in page (EMAIL=, TEAM=, ROLES=)
+make web                  # the UI on port 5173 (keep this terminal open; Ctrl+C stops it)
+```
+
+Open the UI at **http://localhost:5173**. From a Windows browser, use the WSL address that `make web` prints, for example `http://192.168.117.53:5173`. WSL in its default NAT mode does not forward Windows `localhost`, and that address changes after a restart (`hostname -I` shows it). The UI calls the API through the dev server, so only port 5173 has to be reachable.
+
+Stop everything:
+
+```bash
+# Ctrl+C in the make web terminal, then:
+make down                 # stop every container (data volumes are kept)
+```
+
+For a live run on Yotta `gpt-oss-120b`, switch the VPN on first. Without it, tasks fall back to local `qwen3:8b` when `ORCHESTRIX_LOCAL_FALLBACK=true`.
 
 Profiles: `make obs` adds Langfuse (http://localhost:3100), Prometheus and Grafana (http://localhost:3101), and switches tracing on. `make dev-full` also adds Keycloak (http://localhost:8180). To use Keycloak logins, set `ORCHESTRIX_AUTH_MODE=oidc`. The demo users are alice, bob, carol, dave, oscar and ada, and their password is `KC_DEMO_PASSWORD` in `.env`.
 

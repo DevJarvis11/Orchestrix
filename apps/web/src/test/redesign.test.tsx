@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Tabs } from "../components/ui";
 import { parseMode, resolveDark } from "../lib/theme";
 import { rejectReason } from "../lib/uploads";
-import { greeting, titleFromPrompt } from "../lib/utils";
+import { greeting, titleFromPrompt, uuid } from "../lib/utils";
 
 describe("theme", () => {
 	it("treats anything but light or dark as follow-the-system", () => {
@@ -66,6 +66,28 @@ function Harness() {
 		/>
 	);
 }
+
+describe("uuid", () => {
+	it("makes a v4 UUID even where crypto.randomUUID is missing (plain http)", () => {
+		const original = crypto.randomUUID;
+		Object.defineProperty(crypto, "randomUUID", {
+			value: undefined,
+			configurable: true,
+		});
+		try {
+			const a = uuid();
+			expect(a).toMatch(
+				/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+			);
+			expect(uuid()).not.toBe(a);
+		} finally {
+			Object.defineProperty(crypto, "randomUUID", {
+				value: original,
+				configurable: true,
+			});
+		}
+	});
+});
 
 describe("segmented control", () => {
 	it("selects on click and moves with the arrow keys", () => {

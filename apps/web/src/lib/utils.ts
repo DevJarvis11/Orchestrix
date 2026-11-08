@@ -50,3 +50,17 @@ export function greeting(hour: number = new Date().getHours()): string {
 	if (hour < 18) return "Good afternoon";
 	return "Good evening";
 }
+
+/**
+ * A random v4 UUID. `crypto.randomUUID` exists only on secure pages (HTTPS or localhost), so
+ * over plain http (for example the WSL address from a Windows browser) build one from
+ * `crypto.getRandomValues`, which works everywhere.
+ */
+export function uuid(): string {
+	if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+	const b = crypto.getRandomValues(new Uint8Array(16));
+	b[6] = ((b[6] ?? 0) & 0x0f) | 0x40; // version 4
+	b[8] = ((b[8] ?? 0) & 0x3f) | 0x80; // RFC 4122 variant
+	const h = Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+	return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+}

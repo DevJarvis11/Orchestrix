@@ -18,7 +18,7 @@ import {
 } from "../components/ui";
 import { api, type Schemas, unwrap } from "../lib/api/client";
 import { EXTENSIONS, MAX_FILES, useUploads } from "../lib/uploads";
-import { cn, titleFromPrompt } from "../lib/utils";
+import { cn, titleFromPrompt, uuid } from "../lib/utils";
 
 const ROLES = ["planner", "specialist", "reviewer", "fast"] as const;
 
@@ -102,7 +102,7 @@ export function NewTask() {
 			return unwrap(
 				await api.POST("/v1/tasks", {
 					body,
-					params: { header: { "Idempotency-Key": crypto.randomUUID() } },
+					params: { header: { "Idempotency-Key": uuid() } },
 				}),
 			);
 		},

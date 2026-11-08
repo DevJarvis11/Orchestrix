@@ -13,7 +13,7 @@ OPA_IMAGE := openpolicyagent/opa:1.21.3
 GITLEAKS_IMAGE := zricethezav/gitleaks:v8.30.1
 TRIVY_IMAGE := aquasec/trivy:0.76.1
 
-.PHONY: help env dev dev-full down logs ps migrate seed test test-integration lint format \
+.PHONY: help env dev dev-full down web logs ps migrate seed test test-integration lint format \
 	typecheck gateway-check opa-test gitleaks docker-build web-check ci dev-token test-resilience test-stack record-fixtures obs demo scan eval-smoke eval-full eval-calibrate
 
 help: ## List targets
@@ -35,6 +35,10 @@ obs: env ## Core plus the observability profile (Langfuse, Prometheus, Grafana);
 
 down: ## Stop the stack (volumes kept)
 	$(COMPOSE) --profile core --profile observability --profile auth down
+
+web: ## UI dev server on :5173; reachable from a Windows browser at the WSL IP (API proxied by Vite)
+	@echo "Open http://localhost:5173 or, from a Windows browser, http://$$(hostname -I | awk '{print $$1}'):5173"
+	cd apps/web && VITE_API_URL="" pnpm dev --host 0.0.0.0
 
 logs: ## Follow logs (SERVICE=name to filter)
 	$(COMPOSE) --profile core --profile observability --profile auth logs -f $(SERVICE)

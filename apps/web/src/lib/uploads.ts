@@ -1,6 +1,7 @@
 // Attachment uploads, shared by the Home ask box and the New task form (FR-02 limits).
 import { useState } from "react";
 import { api, type Schemas, unwrap } from "./api/client";
+import { uuid } from "./utils";
 
 export const MAX_FILES = 5;
 export const MAX_BYTES = 10 * 1024 * 1024;
@@ -43,7 +44,7 @@ export function useUploads() {
 			if (count + 1 > MAX_FILES) break;
 			count += 1;
 			const entry: Upload = {
-				id: crypto.randomUUID(),
+				id: uuid(),
 				name: file.name,
 				bytes: file.size,
 			};

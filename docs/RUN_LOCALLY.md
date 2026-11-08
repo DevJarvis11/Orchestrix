@@ -70,7 +70,7 @@ make seed       # demo users in two teams, the showcase lesson memory, demo_data
 ## 5. Start the web app
 
 ```bash
-pnpm --filter @orchestrix/web dev          # http://localhost:5173
+make web                                    # http://localhost:5173, or the printed WSL address from Windows
 make dev-token                             # prints a dev login token (paste it on the login screen)
 make dev-token EMAIL=bob@orchestrix.local TEAM=platform ROLES=requester,reviewer
 ```

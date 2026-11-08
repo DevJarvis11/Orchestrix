@@ -29,6 +29,7 @@ import {
 	greeting,
 	relativeTime,
 	titleFromPrompt,
+	uuid,
 } from "../lib/utils";
 
 const rise: Variants = {
@@ -60,7 +61,7 @@ function AskBox() {
 			return unwrap(
 				await api.POST("/v1/tasks", {
 					body,
-					params: { header: { "Idempotency-Key": crypto.randomUUID() } },
+					params: { header: { "Idempotency-Key": uuid() } },
 				}),
 			);
 		},

@@ -186,6 +186,10 @@ Resolved 2026-10-22. `uv.lock` and `pnpm-lock.yaml` are authoritative.
   - **No API changes.**
   - **Deviation from the agreed sketch:** the "Needs me" filter on Tasks was dropped because `GET /v1/tasks` takes only one status. Waiting work is shown on Home and under Approvals instead.
   - **Known issue, not new:** a React dev-mode console warning from TanStack's lazy routes ("called use() to suspend…") also happens on the code before the redesign.
+- 2026-11-08: **Opening the UI from a Windows browser:** WSL here uses NAT mode and does not forward Windows `localhost`. The changes:
+  - **`make web`:** runs Vite on 0.0.0.0, proxies `/v1` and `/healthz` to the API and sets `VITE_API_URL=""`, so the browser only needs port 5173 at the WSL IP.
+  - **New `uuid()` helper:** over plain http the page is not a secure context and `crypto.randomUUID` is missing. The ask box failed with "crypto.randomUUID is not a function", so the helper falls back to `crypto.getRandomValues`.
+  - **Verified:** a real browser on the WSL IP sent the create request with a valid key.
 
 ## Open items for the user
 
