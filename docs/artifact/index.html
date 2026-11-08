@@ -112,10 +112,10 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
       <li><b>4</b><span>specialist agents</span></li>
       <li><b>5</b><span>MCP tool servers</span></li>
       <li><b>6</b><span>kinds of human gate</span></li>
-      <li><b>251</b><span>automated tests passing</span></li>
+      <li><b>262</b><span>automated tests passing</span></li>
       <li><b>17</b><span>policy tests passing</span></li>
     </ul>
-    <span class="status" id="build-status">All milestones coded · live verification in progress</span>
+    <span class="status" id="build-status">Showcase verified live on gpt-oss-120b · browser journeys and evals pending</span>
   </header>
 
   <section id="diagrams" aria-labelledby="diagrams-h">
@@ -153,13 +153,13 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
       <table>
         <thead><tr><th>Milestone</th><th>Scope</th><th>State</th><th>Evidence</th></tr></thead>
         <tbody id="status-rows">
-          <tr><td>M0–M2</td><td>Foundation, graph core, worker leases, tasks API, SSE</td><td><span class="chip ok">verified, committed</span></td><td>Unit, graph and integration tests; worker-kill resilience test</td></tr>
-          <tr><td>M3</td><td>MCP tool servers, specialists, sandbox, injection guard</td><td><span class="chip ok">verified</span></td><td>Sandbox isolation proven live; injection pages flagged; real specialist runs on gpt-oss-120b</td></tr>
-          <tr><td>M4</td><td>Policy, human-in-the-loop, escalation API</td><td><span class="chip ok">verified</span></td><td>17 Rego tests; live pause and resume by a second user</td></tr>
-          <tr><td>M5</td><td>Tracing, metrics, dashboards, cost accounting</td><td><span class="chip part">code complete</span></td><td>Gateway cost header recorded per call; observability profile not yet run live</td></tr>
-          <tr><td>M6</td><td>Long-term memory</td><td><span class="chip part">code complete</span></td><td>Seeded lesson embedded (2560-d); retrieval unit-tested</td></tr>
-          <tr><td>M7</td><td>Web app and Keycloak login</td><td><span class="chip part">code complete</span></td><td>Lint, typecheck and build pass; browser journeys not yet run</td></tr>
-          <tr><td>M8</td><td>Replay, evals, hardening, demo</td><td><span class="chip part">code complete</span></td><td>40 golden tasks and 5 eval datasets built; eval run pending</td></tr>
+          <tr><td>M0–M2</td><td>Foundation, graph core, worker leases, tasks API, SSE</td><td><span class="chip ok">verified</span></td><td>Unit, graph and integration tests; a killed worker's run is finished by another worker with no duplicates</td></tr>
+          <tr><td>M3</td><td>MCP tool servers, specialists, sandbox, injection guard</td><td><span class="chip ok">verified</span></td><td>Showcase completed live on gpt-oss-120b in 646 s; sandbox network, filesystem, time limit and credential isolation proven live</td></tr>
+          <tr><td>M4</td><td>Policy, human-in-the-loop, escalation API</td><td><span class="chip ok">verified</span></td><td>17 Rego tests; four-eyes and fail-closed tests on a real OPA; live pauses resumed by a second user. Email approval not yet run live</td></tr>
+          <tr><td>M5</td><td>Tracing, metrics, dashboards, cost accounting</td><td><span class="chip part">code complete</span></td><td>78 model calls costed live from the gateway; the observability profile has not been run live</td></tr>
+          <tr><td>M6</td><td>Long-term memory</td><td><span class="chip ok">verified</span></td><td>Seeded lesson embedded (2560-d); the live run wrote 3 validated memories; deletion cascade tested</td></tr>
+          <tr><td>M7</td><td>Web app and Keycloak login</td><td><span class="chip part">code complete</span></td><td>Ten screens; lint, typecheck, unit tests and build pass. Browser journeys 5.1–5.5 not yet run</td></tr>
+          <tr><td>M8</td><td>Replay, evals, hardening, demo</td><td><span class="chip part">code complete</span></td><td>Replay API tested; 40 golden tasks across 5 eval datasets; secret scan clean. Eval run pending</td></tr>
         </tbody>
       </table>
     </div>
