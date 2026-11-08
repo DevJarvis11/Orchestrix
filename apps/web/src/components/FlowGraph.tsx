@@ -53,14 +53,15 @@ type FlowNodeData = {
 	onSelect: (id: string) => void;
 };
 
-const BORDER: Record<string, string> = {
-	pending: "border-st-pending",
-	running: "border-st-running",
-	review: "border-st-review",
-	human: "border-st-human",
-	approved: "border-st-approved",
-	failed: "border-st-failed",
-	skipped: "border-st-skipped border-dashed",
+// A coloured edge on the left of each node; the badge inside carries the icon and label too.
+const BAR: Record<string, string> = {
+	pending: "bg-st-pending",
+	running: "bg-st-running",
+	review: "bg-st-review",
+	human: "bg-st-human",
+	approved: "bg-st-approved",
+	failed: "bg-st-failed",
+	skipped: "bg-st-skipped opacity-50",
 };
 
 function ItemNode({ data }: NodeProps<Node<FlowNodeData>>) {
@@ -72,12 +73,22 @@ function ItemNode({ data }: NodeProps<Node<FlowNodeData>>) {
 			aria-pressed={selected}
 			aria-label={`${item.title}${item.status ? `, ${item.status.replace(/_/g, " ")}` : ""}`}
 			className={cn(
-				"flex h-[72px] w-[220px] flex-col justify-between rounded-md border-2 bg-surface px-2.5 py-1.5 text-left shadow-sm",
-				BORDER[toneOf(item.status)],
+				"relative flex h-[72px] w-[220px] flex-col justify-between overflow-hidden rounded-[14px] bg-surface py-1.5 pr-2.5 pl-4 text-left shadow-card ring-1 ring-border transition-shadow hover:shadow-pop",
 				selected && "ring-2 ring-accent",
 			)}
 		>
-			<Handle type="target" position={Position.Left} className="!bg-border" />
+			<span
+				aria-hidden
+				className={cn(
+					"absolute inset-y-0 left-0 w-1",
+					BAR[toneOf(item.status)],
+				)}
+			/>
+			<Handle
+				type="target"
+				position={Position.Left}
+				className="!border-0 !bg-faint"
+			/>
 			<span className="truncate text-sm font-semibold">{item.title}</span>
 			{item.subtitle && (
 				<span className="truncate text-xs text-muted">{item.subtitle}</span>
@@ -86,7 +97,11 @@ function ItemNode({ data }: NodeProps<Node<FlowNodeData>>) {
 				{item.status && <StatusBadge status={item.status} />}
 				{item.extra}
 			</span>
-			<Handle type="source" position={Position.Right} className="!bg-border" />
+			<Handle
+				type="source"
+				position={Position.Right}
+				className="!border-0 !bg-faint"
+			/>
 		</button>
 	);
 }
@@ -173,7 +188,7 @@ export function FlowGraph({
 	return (
 		<div
 			style={{ height }}
-			className="rounded-md border border-border bg-surface-2"
+			className="overflow-hidden rounded-xl bg-surface-2 ring-1 ring-border"
 		>
 			{laidOut && (
 				<ReactFlow
@@ -186,7 +201,7 @@ export function FlowGraph({
 					proOptions={{ hideAttribution: true }}
 					minZoom={0.2}
 				>
-					<Background />
+					<Background gap={18} size={1.2} />
 					<Controls showInteractive={false} />
 				</ReactFlow>
 			)}

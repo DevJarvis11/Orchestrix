@@ -31,3 +31,4 @@ test-results/
 .DS_Store
 reports/
 .archify/
+.superpowers/

@@ -64,6 +64,7 @@ Resolved 2026-10-22. `uv.lock` and `pnpm-lock.yaml` are authoritative.
 | LiteLLM image | `ghcr.io/berriai/litellm-database:v1.106.2` | Config checked against the 1.106.2 source |
 | gitleaks / trivy images | v8.30.1 / 0.76.1 | |
 | react / vite / typescript / biome | 19.3.1 / 8.3.x / 6.0.x / 2.6.2 | |
+| motion / @fontsource-variable/inter | 14.10.1 / 5.3.0 | 2026-11-08 UI redesign |
 
 ## Decisions and deviations
 
@@ -175,6 +176,16 @@ Resolved 2026-10-22. `uv.lock` and `pnpm-lock.yaml` are authoritative.
 - 2026-11-08: **Deliverables:** project artifact (claude.ai, private) built from `docs/artifact/index.html` with the four diagrams; Word documentation `docs/Orchestrix-Project-Documentation.docx` (A4, validated); `docs/RUN_LOCALLY.md`.
 - 2026-11-08: **Structure:** one S3 store (`orchestrix_core.storage.S3ObjectStore`, `artifact_key`) replaces the duplicate in `orchestrix_tools.objects`; `GatewayEmbedder.from_settings`; dead `lease.py` and the unused `ollama_base_url` setting removed; shared API test fixtures and a real OPA container live in `tests/integration/conftest.py`; `record_fixtures.py` drives mcp-web's own record mode (searches and fetched pages).
 - 2026-11-08: **Diagrams:** four Archify diagrams (architecture, run graph, approval sequence, task lifecycle) in `docs/diagrams/`, each passing validate, deliver, check and the real-browser gate. They are authored from the code without pinned source links (the work was uncommitted when they were drawn).
+- 2026-11-08: **UI redesign (user request):** an Apple-style look across all screens. The user asked for Next.js, then confirmed the real goal is a better-looking UI, so the SPEC 7 stack (React 19 + Vite + TypeScript) is kept. The changes:
+  - **Shell:** a frosted macOS-style sidebar, which becomes a drawer on mobile.
+  - **New Home screen at `/`:** an ask box that creates a task directly, with the title taken from the first line, plus summary numbers, in-progress cards and recent tasks.
+  - **Tasks moved to `/tasks`:** a grouped list with All / Mine, a status filter and title search over the loaded rows.
+  - **Theme:** a light / dark / system switch, stored per browser and applied before first paint.
+  - **Animation:** Motion, which respects reduced-motion settings.
+  - **Font:** Inter Variable, for Windows.
+  - **No API changes.**
+  - **Deviation from the agreed sketch:** the "Needs me" filter on Tasks was dropped because `GET /v1/tasks` takes only one status. Waiting work is shown on Home and under Approvals instead.
+  - **Known issue, not new:** a React dev-mode console warning from TanStack's lazy routes ("called use() to suspend…") also happens on the code before the redesign.
 
 ## Open items for the user
 

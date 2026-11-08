@@ -30,3 +30,23 @@ export function relativeTime(iso: string, now: number = Date.now()): string {
 export function shortId(id: string): string {
 	return id.slice(0, 8);
 }
+
+/** A task title from a free-text request: its first line, at most `max` characters. */
+export function titleFromPrompt(text: string, max = 80): string {
+	const line =
+		text
+			.split("\n")
+			.map((l) => l.replace(/\s+/g, " ").trim())
+			.find(Boolean) ?? "";
+	if (line.length <= max) return line;
+	const cut = line.slice(0, max - 1);
+	const space = cut.lastIndexOf(" ");
+	return `${(space > max * 0.6 ? cut.slice(0, space) : cut).trimEnd()}…`;
+}
+
+export function greeting(hour: number = new Date().getHours()): string {
+	if (hour < 5) return "Good evening";
+	if (hour < 12) return "Good morning";
+	if (hour < 18) return "Good afternoon";
+	return "Good evening";
+}

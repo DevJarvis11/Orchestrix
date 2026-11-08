@@ -25,28 +25,28 @@ type Tone =
 
 const TONES: Record<Tone, { cls: string; icon: LucideIcon }> = {
 	pending: {
-		cls: "text-st-pending border-st-pending/40 bg-st-pending/10",
+		cls: "text-st-pending bg-st-pending/12",
 		icon: CircleDashed,
 	},
 	running: {
-		cls: "text-st-running border-st-running/40 bg-st-running/10",
+		cls: "text-st-running bg-st-running/12",
 		icon: Loader2,
 	},
 	review: {
-		cls: "text-st-review border-st-review/40 bg-st-review/10",
+		cls: "text-st-review bg-st-review/12",
 		icon: Eye,
 	},
-	human: { cls: "text-st-human border-st-human/40 bg-st-human/10", icon: Hand },
+	human: { cls: "text-st-human bg-st-human/12", icon: Hand },
 	approved: {
-		cls: "text-st-approved border-st-approved/40 bg-st-approved/10",
+		cls: "text-st-approved bg-st-approved/12",
 		icon: CheckCircle2,
 	},
 	failed: {
-		cls: "text-st-failed border-st-failed/40 bg-st-failed/10",
+		cls: "text-st-failed bg-st-failed/12",
 		icon: XCircle,
 	},
 	skipped: {
-		cls: "text-st-skipped border-st-skipped border-dashed bg-transparent",
+		cls: "text-st-skipped border border-dashed border-st-skipped/50",
 		icon: SkipForward,
 	},
 };
@@ -106,7 +106,7 @@ export function StatusBadge({
 	return (
 		<span
 			className={cn(
-				"inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap",
+				"inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap",
 				cls,
 				className,
 			)}
@@ -114,11 +114,11 @@ export function StatusBadge({
 			<Icon
 				aria-hidden
 				className={cn(
-					"size-3.5",
+					"size-3.5 shrink-0",
 					tone === "running" && "animate-spin [animation-duration:2s]",
 				)}
 			/>
-			{label}
+			<span className="inline-block first-letter:uppercase">{label}</span>
 		</span>
 	);
 }

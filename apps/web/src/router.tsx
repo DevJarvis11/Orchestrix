@@ -6,6 +6,7 @@ import {
 	lazyRouteComponent,
 } from "@tanstack/react-router";
 import { Layout, RequireRole } from "./components/Layout";
+import { Home } from "./routes/Home";
 import { Inbox } from "./routes/Inbox";
 import { MemoryPage } from "./routes/MemoryPage";
 import { NewTask } from "./routes/NewTask";
@@ -30,14 +31,22 @@ const Admin = lazyRouteComponent(() => import("./routes/Admin"), "Admin");
 
 const root = createRootRoute({ component: Layout });
 
-const tasks = createRoute({
+const home = createRoute({
 	getParentRoute: () => root,
 	path: "/",
+	component: Home,
+});
+const tasks = createRoute({
+	getParentRoute: () => root,
+	path: "/tasks",
 	component: TasksDashboard,
 });
 const newTask = createRoute({
 	getParentRoute: () => root,
 	path: "/tasks/new",
+	// `q` carries text typed into the Home ask box.
+	validateSearch: (search: Record<string, unknown>): { q?: string } =>
+		typeof search.q === "string" ? { q: search.q } : {},
 	component: () => (
 		<RequireRole roles={["requester"]}>
 			<NewTask />
@@ -99,10 +108,11 @@ const admin = createRoute({
 const callback = createRoute({
 	getParentRoute: () => root,
 	path: "/auth/callback",
-	component: TasksDashboard,
+	component: Home,
 });
 
 const routeTree = root.addChildren([
+	home,
 	tasks,
 	newTask,
 	taskDetail,

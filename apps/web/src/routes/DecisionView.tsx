@@ -337,7 +337,7 @@ export function DecisionView() {
 								{progress.map((p) => (
 									<li
 										key={p.key}
-										className="flex items-center gap-1 rounded border border-border px-2 py-1 text-xs"
+										className="flex items-center gap-1.5 rounded-full bg-fill py-1 pr-1 pl-3 text-xs"
 									>
 										{p.key} · {p.specialist} <StatusBadge status={p.status} />
 									</li>
@@ -432,7 +432,7 @@ export function DecisionView() {
 									).map((s) => (
 										<li
 											key={String(s.key)}
-											className="flex items-start justify-between gap-2 rounded border border-border p-2 text-sm"
+											className="flex items-start justify-between gap-2 rounded-xl bg-surface-2 p-3 text-sm"
 										>
 											<span>
 												<strong>{String(s.key)}</strong> ·{" "}
@@ -700,7 +700,7 @@ function Chat({
 						key={m.created_at + m.role}
 						className={
 							m.role === "agent"
-								? "rounded-md bg-surface-2 p-2"
+								? "rounded-xl bg-surface-2 p-3"
 								: "p-2 text-right"
 						}
 					>

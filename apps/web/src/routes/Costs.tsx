@@ -1,5 +1,6 @@
 // Costs (SPEC 18.1, FR-62, A4): by day, agent, model, team and task type. Notional prices are labelled.
 import { useQuery } from "@tanstack/react-query";
+import { CircleDollarSign, PlayCircle, Wrench } from "lucide-react";
 import { useState } from "react";
 import {
 	Bar,
@@ -17,6 +18,7 @@ import {
 	ErrorNote,
 	Select,
 	Spinner,
+	Stat,
 	Tabs,
 } from "../components/ui";
 import { api, unwrap } from "../lib/api/client";
@@ -79,28 +81,28 @@ export function Costs() {
 				<Empty>No model usage in this window.</Empty>
 			) : (
 				<div className="space-y-4">
-					<div className="grid gap-4 md:grid-cols-3">
-						<Card title="Total">
-							<p className="text-2xl font-semibold tabular-nums">
-								{formatUsd(report.data?.total_usd ?? 0)}
-							</p>
-							{notional && (
-								<p className="text-xs text-muted">
-									Includes notional prices for self-hosted models.
-								</p>
-							)}
-						</Card>
-						<Card title="Runs">
-							<p className="text-2xl font-semibold tabular-nums">
-								{rows.reduce((a, r) => a + r.runs, 0)}
-							</p>
-						</Card>
-						<Card title="Tool calls">
-							<p className="text-2xl font-semibold tabular-nums">
-								{report.data?.tool_calls ?? 0}
-							</p>
-						</Card>
+					<div className="grid gap-3 md:grid-cols-3">
+						<Stat
+							icon={CircleDollarSign}
+							label={notional ? "Total (incl. notional)" : "Total"}
+							value={formatUsd(report.data?.total_usd ?? 0)}
+						/>
+						<Stat
+							icon={PlayCircle}
+							label="Runs"
+							value={rows.reduce((a, r) => a + r.runs, 0)}
+						/>
+						<Stat
+							icon={Wrench}
+							label="Tool calls"
+							value={report.data?.tool_calls ?? 0}
+						/>
 					</div>
+					{notional && (
+						<p className="px-1 text-xs text-muted">
+							Includes notional prices for self-hosted models.
+						</p>
+					)}
 					<Card title={`Cost by ${groupBy.replace("_", " ")}`}>
 						<div
 							className="h-80"
@@ -109,22 +111,54 @@ export function Costs() {
 						>
 							<ResponsiveContainer width="100%" height="100%">
 								<BarChart data={rows}>
-									<CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-									<XAxis dataKey="key" stroke="var(--muted)" fontSize={12} />
+									<defs>
+										<linearGradient id="cost-bar" x1="0" y1="0" x2="0" y2="1">
+											<stop
+												offset="0"
+												stopColor="var(--accent)"
+												stopOpacity={1}
+											/>
+											<stop
+												offset="1"
+												stopColor="var(--accent)"
+												stopOpacity={0.55}
+											/>
+										</linearGradient>
+									</defs>
+									<CartesianGrid vertical={false} stroke="var(--border)" />
+									<XAxis
+										dataKey="key"
+										stroke="var(--muted)"
+										fontSize={12}
+										tickLine={false}
+										axisLine={false}
+									/>
 									<YAxis
 										stroke="var(--muted)"
 										fontSize={12}
+										tickLine={false}
+										axisLine={false}
+										width={64}
 										tickFormatter={(v: number) => formatUsd(v)}
 									/>
 									<Tooltip
 										formatter={(v) => formatUsd(Number(v))}
+										cursor={{ fill: "var(--fill)" }}
 										contentStyle={{
 											background: "var(--surface)",
-											border: "1px solid var(--border)",
+											border: "none",
+											borderRadius: 12,
+											boxShadow: "var(--shadow-pop)",
 											color: "var(--fg)",
 										}}
 									/>
-									<Bar dataKey="cost_usd" name="Cost" fill="var(--accent)" />
+									<Bar
+										dataKey="cost_usd"
+										name="Cost"
+										fill="url(#cost-bar)"
+										radius={[6, 6, 0, 0]}
+										maxBarSize={48}
+									/>
 								</BarChart>
 							</ResponsiveContainer>
 						</div>

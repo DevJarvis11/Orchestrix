@@ -1,49 +1,65 @@
 @import "tailwindcss";
 @import "@xyflow/react/dist/style.css";
+@import "@fontsource-variable/inter";
 
-/* Light and dark themes via CSS variables (SPEC 18.2). `.dark` on <html> switches. */
+/* Apple-style light and dark themes via CSS variables (SPEC 18.2). `.dark` on <html> switches. */
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-	--bg: oklch(0.985 0 0);
-	--surface: oklch(1 0 0);
-	--surface-2: oklch(0.965 0.003 260);
-	--fg: oklch(0.21 0.02 260);
-	--muted: oklch(0.48 0.02 260);
-	--border: oklch(0.9 0.006 260);
-	--accent: oklch(0.52 0.17 262);
-	--accent-fg: oklch(0.99 0 0);
-	--focus: oklch(0.6 0.2 262);
-	--danger: oklch(0.55 0.21 27);
+	--bg: #f5f5f7;
+	--surface: #ffffff;
+	--surface-2: #f2f2f5;
+	--fill: rgb(118 118 128 / 0.12);
+	--sidebar: rgb(236 236 241 / 0.78);
+	--glass: rgb(255 255 255 / 0.72);
+	--fg: #1d1d1f;
+	--muted: #6e6e73;
+	--faint: #aeaeb2;
+	--border: rgb(0 0 0 / 0.08);
+	--accent: #0071e3;
+	--accent-fg: #ffffff;
+	--focus: rgb(0 113 227 / 0.55);
+	--danger: #d70015;
+	--glow: #e8efff;
+	--shadow-card: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 16px -8px rgb(0 0 0 / 0.08);
+	--shadow-pop: 0 24px 60px -20px rgb(0 0 0 / 0.28);
 	/* Status palette (SPEC 18.2). Colour is never the only signal: icons + labels too. */
-	--st-pending: oklch(0.55 0.01 260);
-	--st-running: oklch(0.55 0.17 250);
-	--st-review: oklch(0.52 0.19 300);
-	--st-human: oklch(0.62 0.15 70);
-	--st-approved: oklch(0.55 0.15 150);
-	--st-failed: oklch(0.55 0.21 27);
-	--st-skipped: oklch(0.6 0.01 260);
+	--st-pending: #8e8e93;
+	--st-running: #0071e3;
+	--st-review: #8944ab;
+	--st-human: #c46a00;
+	--st-approved: #248a3d;
+	--st-failed: #d70015;
+	--st-skipped: #8e8e93;
 	color-scheme: light;
 }
 
 .dark {
-	--bg: oklch(0.17 0.01 260);
-	--surface: oklch(0.21 0.012 260);
-	--surface-2: oklch(0.25 0.014 260);
-	--fg: oklch(0.94 0.005 260);
-	--muted: oklch(0.7 0.015 260);
-	--border: oklch(0.32 0.015 260);
-	--accent: oklch(0.68 0.15 262);
-	--accent-fg: oklch(0.15 0.01 260);
-	--focus: oklch(0.75 0.15 262);
-	--danger: oklch(0.7 0.18 27);
-	--st-pending: oklch(0.72 0.01 260);
-	--st-running: oklch(0.72 0.14 250);
-	--st-review: oklch(0.72 0.15 300);
-	--st-human: oklch(0.8 0.14 75);
-	--st-approved: oklch(0.74 0.14 150);
-	--st-failed: oklch(0.7 0.18 27);
-	--st-skipped: oklch(0.7 0.01 260);
+	--bg: #000000;
+	--surface: #1c1c1e;
+	--surface-2: #2c2c2e;
+	--fill: rgb(118 118 128 / 0.24);
+	--sidebar: rgb(28 28 30 / 0.82);
+	--glass: rgb(22 22 24 / 0.72);
+	--fg: #f5f5f7;
+	--muted: #98989d;
+	--faint: #636366;
+	--border: rgb(255 255 255 / 0.1);
+	--accent: #0a84ff;
+	--accent-fg: #ffffff;
+	--focus: rgb(10 132 255 / 0.6);
+	--danger: #ff453a;
+	--glow: #0a1830;
+	--shadow-card:
+		0 1px 2px rgb(0 0 0 / 0.5), 0 0 0 0.5px rgb(255 255 255 / 0.04);
+	--shadow-pop: 0 24px 60px -16px rgb(0 0 0 / 0.8);
+	--st-pending: #98989d;
+	--st-running: #64d2ff;
+	--st-review: #da8fff;
+	--st-human: #ffb340;
+	--st-approved: #30d158;
+	--st-failed: #ff6961;
+	--st-skipped: #98989d;
 	color-scheme: dark;
 }
 
@@ -51,8 +67,12 @@
 	--color-bg: var(--bg);
 	--color-surface: var(--surface);
 	--color-surface-2: var(--surface-2);
+	--color-fill: var(--fill);
+	--color-sidebar: var(--sidebar);
+	--color-glass: var(--glass);
 	--color-fg: var(--fg);
 	--color-muted: var(--muted);
+	--color-faint: var(--faint);
 	--color-border: var(--border);
 	--color-accent: var(--accent);
 	--color-accent-fg: var(--accent-fg);
@@ -64,46 +84,162 @@
 	--color-st-approved: var(--st-approved);
 	--color-st-failed: var(--st-failed);
 	--color-st-skipped: var(--st-skipped);
-	--font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-	--font-mono: "JetBrains Mono", ui-monospace, monospace;
+	--shadow-card: var(--shadow-card);
+	--shadow-pop: var(--shadow-pop);
+	--font-sans:
+		-apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter Variable", "Inter",
+		ui-sans-serif, system-ui, sans-serif;
+	--font-mono:
+		ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
 }
 
-html,
-body {
-	background: var(--bg);
-	color: var(--fg);
-	font-family: var(--font-sans);
+/* A white (or #1c1c1e) panel with a hairline ring and a soft shadow: the base of every group. */
+@utility panel {
+	background-color: var(--surface);
+	border-radius: 1rem;
+	box-shadow:
+		var(--shadow-card),
+		0 0 0 1px var(--border);
+}
+
+/* Frosted glass for bars and the sidebar. */
+@utility glass {
+	background-color: var(--glass);
+	backdrop-filter: saturate(180%) blur(20px);
+	-webkit-backdrop-filter: saturate(180%) blur(20px);
+}
+
+@layer base {
+	html,
+	body {
+		background: var(--bg);
+		color: var(--fg);
+		font-family: var(--font-sans);
+		font-feature-settings: "cv11", "ss01";
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+		text-rendering: optimizeLegibility;
+	}
+
+	::selection {
+		background: color-mix(in srgb, var(--accent) 28%, transparent);
+	}
+
+	h1,
+	h2,
+	h3 {
+		letter-spacing: -0.015em;
+	}
+
+	/* Tables read like Apple's settings lists: quiet headers, hairline rows. */
+	thead th {
+		font-size: 0.75rem;
+		font-weight: 500;
+		color: var(--muted);
+	}
+
+	input[type="checkbox"],
+	input[type="radio"] {
+		accent-color: var(--accent);
+	}
+
+	dialog::backdrop {
+		background: rgb(0 0 0 / 0.35);
+		backdrop-filter: blur(4px);
+	}
+
+	/* Thin, unobtrusive scrollbars. */
+	* {
+		scrollbar-width: thin;
+		scrollbar-color: var(--faint) transparent;
+	}
 }
 
 /* Visible focus everywhere (NFR-11). */
 :focus-visible {
-	outline: 2px solid var(--focus);
+	outline: 3px solid var(--focus);
 	outline-offset: 2px;
-	border-radius: 4px;
+	border-radius: 8px;
 }
 
+/* Theme switches fade instead of flashing; skipped for users who ask for less motion. */
+html.theme-fade,
+html.theme-fade * {
+	/* biome-ignore lint/complexity/noImportantStyles: must beat utility transitions */
+	transition-property: background-color, border-color, color !important;
+	/* biome-ignore lint/complexity/noImportantStyles: must beat utility transitions */
+	transition-duration: 0.3s !important;
+	/* biome-ignore lint/complexity/noImportantStyles: must beat utility transitions */
+	transition-timing-function: ease !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		/* biome-ignore lint/complexity/noImportantStyles: must beat utility transitions */
+		animation-duration: 0.01ms !important;
+		/* biome-ignore lint/complexity/noImportantStyles: must beat utility transitions */
+		animation-iteration-count: 1 !important;
+		/* biome-ignore lint/complexity/noImportantStyles: must beat utility transitions */
+		transition-duration: 0.01ms !important;
+	}
+}
+
+/* Indeterminate progress bar for running work. */
+@keyframes indeterminate {
+	0% {
+		transform: translateX(-100%);
+	}
+	100% {
+		transform: translateX(250%);
+	}
+}
+.bar-indeterminate {
+	animation: indeterminate 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* React Flow follows the theme. */
+.react-flow {
+	--xy-background-pattern-dots-color-default: var(--faint);
+	--xy-edge-stroke-default: var(--faint);
+	--xy-controls-button-background-color-default: var(--surface);
+	--xy-controls-button-background-color-hover-default: var(--surface-2);
+	--xy-controls-button-color-default: var(--fg);
+	--xy-controls-button-border-color-default: var(--border);
+}
+.react-flow__controls {
+	border-radius: 10px;
+	overflow: hidden;
+	box-shadow:
+		var(--shadow-card),
+		0 0 0 1px var(--border);
+}
 .react-flow__node:focus-visible {
-	outline: 2px solid var(--focus);
+	outline: 3px solid var(--focus);
+	border-radius: 14px;
 }
 
+.prose-agent {
+	line-height: 1.65;
+}
 .prose-agent h1 {
-	font-size: 1.4rem;
+	font-size: 1.5rem;
 	font-weight: 700;
-	margin: 1rem 0 0.5rem;
+	margin: 1.25rem 0 0.5rem;
 }
 .prose-agent h2 {
-	font-size: 1.2rem;
+	font-size: 1.25rem;
 	font-weight: 650;
-	margin: 1rem 0 0.4rem;
+	margin: 1.1rem 0 0.4rem;
 }
 .prose-agent h3 {
 	font-size: 1.05rem;
 	font-weight: 600;
-	margin: 0.8rem 0 0.3rem;
+	margin: 0.9rem 0 0.3rem;
 }
 .prose-agent p {
-	margin: 0.5rem 0;
-	line-height: 1.6;
+	margin: 0.6rem 0;
 }
 .prose-agent ul {
 	list-style: disc;
@@ -115,29 +251,56 @@ body {
 	padding-left: 1.4rem;
 	margin: 0.5rem 0;
 }
+.prose-agent li {
+	margin: 0.2rem 0;
+}
 .prose-agent a {
 	color: var(--accent);
+	text-decoration: none;
+}
+.prose-agent a:hover {
 	text-decoration: underline;
+}
+.prose-agent blockquote {
+	border-left: 3px solid var(--border);
+	padding-left: 0.9rem;
+	color: var(--muted);
 }
 .prose-agent code {
 	font-family: var(--font-mono);
 	font-size: 0.85em;
-	background: var(--surface-2);
-	padding: 0 0.25rem;
-	border-radius: 4px;
+	background: var(--fill);
+	padding: 0.1rem 0.35rem;
+	border-radius: 6px;
 }
 .prose-agent pre {
 	background: var(--surface-2);
-	padding: 0.75rem;
-	border-radius: 6px;
+	padding: 0.9rem 1rem;
+	border-radius: 12px;
 	overflow-x: auto;
 }
+.prose-agent pre code {
+	background: transparent;
+	padding: 0;
+}
 .prose-agent table {
-	border-collapse: collapse;
-	margin: 0.75rem 0;
+	border-collapse: separate;
+	border-spacing: 0;
+	margin: 0.9rem 0;
+	border-radius: 12px;
+	overflow: hidden;
+	box-shadow: 0 0 0 1px var(--border);
 }
 .prose-agent th,
 .prose-agent td {
-	border: 1px solid var(--border);
-	padding: 0.25rem 0.5rem;
+	border-bottom: 1px solid var(--border);
+	padding: 0.4rem 0.75rem;
+	text-align: left;
+}
+.prose-agent th {
+	background: var(--surface-2);
+	font-weight: 600;
+}
+.prose-agent tr:last-child td {
+	border-bottom: 0;
 }

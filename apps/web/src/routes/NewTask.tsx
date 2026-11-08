@@ -1,8 +1,8 @@
 // New task (SPEC 18.1, FR-02): Zod schema mirrors the API limits; uploads go first.
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-import { FileUp, Trash2 } from "lucide-react";
+import { useNavigate, useSearch } from "@tanstack/react-router";
+import { CheckCircle2, FileText, FileUp, Loader2, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -17,10 +17,9 @@ import {
 	Textarea,
 } from "../components/ui";
 import { api, type Schemas, unwrap } from "../lib/api/client";
+import { EXTENSIONS, MAX_FILES, useUploads } from "../lib/uploads";
+import { cn, titleFromPrompt } from "../lib/utils";
 
-const MAX_FILES = 5;
-const MAX_BYTES = 10 * 1024 * 1024;
-const EXTENSIONS = [".pdf", ".md", ".txt", ".csv", ".xlsx"];
 const ROLES = ["planner", "specialist", "reviewer", "fast"] as const;
 
 const optionalNumber = (min: number) =>
@@ -49,29 +48,11 @@ const schema = z.object({
 type FormIn = z.input<typeof schema>;
 type FormOut = z.output<typeof schema>;
 
-interface Upload {
-	id: string;
-	name: string;
-	bytes: number;
-	artifactId?: string;
-	error?: string;
-}
-
-async function uploadFile(file: File): Promise<Schemas["UploadAccepted"]> {
-	const form = new FormData();
-	form.append("file", file);
-	return unwrap(
-		await api.POST("/v1/uploads", {
-			// multipart: the generated body type is the form, sent as FormData unchanged
-			body: form as unknown as Schemas["Body_upload_v1_uploads_post"],
-			bodySerializer: (b) => b as unknown as FormData,
-		}),
-	);
-}
-
 export function NewTask() {
 	const navigate = useNavigate();
-	const [uploads, setUploads] = useState<Upload[]>([]);
+	const { q } = useSearch({ from: "/tasks/new" });
+	const files = useUploads();
+	const uploads = files.uploads;
 	const [dragging, setDragging] = useState(false);
 	const models = useQuery({
 		queryKey: ["models"],
@@ -80,8 +61,8 @@ export function NewTask() {
 	const form = useForm<FormIn, unknown, FormOut>({
 		resolver: zodResolver(schema),
 		defaultValues: {
-			title: "",
-			description: "",
+			title: q ? titleFromPrompt(q) : "",
+			description: q ?? "",
 			require_plan_approval: false,
 			require_final_approval: false,
 			override_budget: false,
@@ -95,42 +76,6 @@ export function NewTask() {
 	const description = watch("description") ?? "";
 	const overrideBudget = watch("override_budget");
 
-	const addFiles = async (files: FileList | File[]) => {
-		const list = Array.from(files);
-		for (const file of list) {
-			if (uploads.length + 1 > MAX_FILES) break;
-			const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
-			const entry: Upload = {
-				id: crypto.randomUUID(),
-				name: file.name,
-				bytes: file.size,
-			};
-			if (!EXTENSIONS.includes(ext)) entry.error = "type not allowed";
-			else if (file.size > MAX_BYTES) entry.error = "over 10 MB";
-			setUploads((u) => [...u, entry]);
-			if (entry.error) continue;
-			try {
-				const accepted = await uploadFile(file);
-				setUploads((u) =>
-					u.map((x) =>
-						x === entry ? { ...x, artifactId: accepted.artifact_id } : x,
-					),
-				);
-			} catch (e) {
-				setUploads((u) =>
-					u.map((x) =>
-						x === entry
-							? {
-									...x,
-									error: e instanceof Error ? e.message : "upload failed",
-								}
-							: x,
-					),
-				);
-			}
-		}
-	};
-
 	const submit = useMutation({
 		mutationFn: async (v: FormOut) => {
 			const overrides: Record<string, string> = {};
@@ -140,9 +85,7 @@ export function NewTask() {
 			const body: Schemas["TaskCreate"] = {
 				title: v.title,
 				description: v.description,
-				attachments: uploads.flatMap((u) =>
-					u.artifactId ? [u.artifactId] : [],
-				),
+				attachments: files.artifactIds,
 				require_plan_approval: v.require_plan_approval,
 				require_final_approval: v.require_final_approval,
 				model_overrides: overrides,
@@ -170,7 +113,7 @@ export function NewTask() {
 			}),
 	});
 
-	const busyUploads = uploads.some((u) => !u.artifactId && !u.error);
+	const busyUploads = files.busy;
 	const chatModels = models.data?.models ?? [];
 
 	return (
@@ -219,51 +162,76 @@ export function NewTask() {
 								onDrop={(e) => {
 									e.preventDefault();
 									setDragging(false);
-									void addFiles(e.dataTransfer.files);
+									void files.add(e.dataTransfer.files);
 								}}
-								className={`flex cursor-pointer flex-col items-center gap-1 rounded-md border-2 border-dashed p-6 text-sm text-muted ${dragging ? "border-accent bg-surface-2" : "border-border"}`}
+								className={cn(
+									"flex cursor-pointer flex-col items-center gap-2 rounded-2xl border-2 border-dashed px-6 py-8 text-center text-sm text-muted transition-colors",
+									dragging
+										? "border-accent bg-accent/5 text-accent"
+										: "border-border hover:border-faint hover:bg-fill/40",
+								)}
 							>
-								<FileUp aria-hidden className="size-5" />
-								Drop files or choose: pdf, md, txt, csv, xlsx · up to{" "}
-								{MAX_FILES} · 10 MB each
+								<span className="grid size-11 place-items-center rounded-full bg-fill">
+									<FileUp aria-hidden className="size-5" />
+								</span>
+								<span className="font-medium text-fg">
+									Drop files here or click to choose
+								</span>
+								<span className="text-xs">
+									pdf, md, txt, csv, xlsx · up to {MAX_FILES} · 10 MB each
+								</span>
 								<input
 									type="file"
 									multiple
 									accept={EXTENSIONS.join(",")}
 									className="sr-only"
 									onChange={(e) =>
-										e.target.files && void addFiles(e.target.files)
+										e.target.files && void files.add(e.target.files)
 									}
 									disabled={uploads.length >= MAX_FILES}
 								/>
 							</label>
 							{uploads.length > 0 && (
-								<ul className="mt-2 space-y-1 text-sm">
+								<ul className="mt-3 space-y-1.5 text-sm">
 									{uploads.map((u) => (
 										<li
 											key={u.id}
-											className="flex items-center justify-between rounded border border-border px-2 py-1"
+											className="flex items-center justify-between rounded-xl bg-fill px-3 py-1.5"
 										>
-											<span>
-												{u.name}{" "}
-												<span className="text-muted">
-													({Math.ceil(u.bytes / 1024)} KB)
-												</span>{" "}
+											<span className="flex min-w-0 items-center gap-2">
 												{u.error ? (
-													<span className="text-danger">— {u.error}</span>
+													<FileText
+														aria-hidden
+														className="size-4 shrink-0 text-danger"
+													/>
 												) : u.artifactId ? (
-													<span className="text-st-approved">— uploaded</span>
+													<CheckCircle2
+														aria-hidden
+														className="size-4 shrink-0 text-st-approved"
+													/>
 												) : (
-													<span className="text-muted">— uploading…</span>
+													<Loader2
+														aria-hidden
+														className="size-4 shrink-0 animate-spin text-muted"
+													/>
 												)}
+												<span className="truncate">{u.name}</span>
+												<span className="shrink-0 text-xs text-muted">
+													{Math.ceil(u.bytes / 1024)} KB
+													{u.error ? (
+														<span className="text-danger"> · {u.error}</span>
+													) : u.artifactId ? (
+														" · uploaded"
+													) : (
+														" · uploading…"
+													)}
+												</span>
 											</span>
 											<Button
 												variant="ghost"
 												size="sm"
 												aria-label={`Remove ${u.name}`}
-												onClick={() =>
-													setUploads((x) => x.filter((y) => y.id !== u.id))
-												}
+												onClick={() => files.remove(u.id)}
 											>
 												<Trash2 aria-hidden className="size-4" />
 											</Button>
@@ -363,7 +331,7 @@ export function NewTask() {
 						busy={submit.isPending}
 						disabled={busyUploads}
 					>
-						Submit task
+						Start task
 					</Button>
 				</div>
 			</form>

@@ -111,7 +111,7 @@ export function TraceExplorer() {
 										type="button"
 										onClick={() => setSelected(n.id)}
 										aria-current={selected === n.id || undefined}
-										className={`flex w-full items-center gap-2 rounded px-1.5 py-1 text-left hover:bg-surface-2 ${selected === n.id ? "bg-surface-2 font-semibold" : ""}`}
+										className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-fill ${selected === n.id ? "bg-accent/12 font-medium text-accent" : ""}`}
 									>
 										{n.status && <StatusBadge status={n.status} />}
 										<span className="truncate">{n.label}</span>
@@ -201,7 +201,7 @@ function Inspector({ runId, node }: { runId: string; node: TraceNode | null }) {
 					]}
 				/>
 				{node.payload && Object.keys(node.payload).length > 0 && (
-					<pre className="max-h-72 overflow-auto rounded-md bg-surface-2 p-2 text-xs">
+					<pre className="max-h-72 overflow-auto rounded-xl bg-surface-2 p-3 text-xs">
 						{JSON.stringify(node.payload, null, 2)}
 					</pre>
 				)}
@@ -216,7 +216,7 @@ function Inspector({ runId, node }: { runId: string; node: TraceNode | null }) {
 				)}
 				<ErrorNote error={payload.error} />
 				{payload.data && load === node.id && (
-					<pre className="max-h-[28rem] overflow-auto rounded-md bg-surface-2 p-2 text-xs">
+					<pre className="max-h-[28rem] overflow-auto rounded-xl bg-surface-2 p-3 text-xs">
 						{JSON.stringify(payload.data.data, null, 2)}
 					</pre>
 				)}

@@ -89,11 +89,11 @@ export function Inbox() {
 						<section key={level} aria-labelledby={`lvl-${level}`}>
 							<h2
 								id={`lvl-${level}`}
-								className="mb-2 text-sm font-semibold text-muted"
+								className="mb-2 px-1 text-xs font-semibold tracking-wide text-muted uppercase"
 							>
 								{LEVEL_LABEL[level]} ({groups.get(level)?.length})
 							</h2>
-							<ul className="divide-y divide-border rounded-lg border border-border bg-surface">
+							<ul className="panel divide-y divide-border overflow-hidden">
 								{groups.get(level)?.map((e) => (
 									<li key={e.id}>
 										<Link

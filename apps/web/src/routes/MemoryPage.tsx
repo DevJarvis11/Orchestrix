@@ -107,11 +107,11 @@ export function MemoryPage() {
 						<section key={k} aria-labelledby={`kind-${k}`}>
 							<h2
 								id={`kind-${k}`}
-								className="mb-2 text-sm font-semibold capitalize text-muted"
+								className="mb-2 px-1 text-xs font-semibold tracking-wide text-muted uppercase"
 							>
 								{k}s ({items.length})
 							</h2>
-							<ul className="divide-y divide-border rounded-lg border border-border bg-surface">
+							<ul className="panel divide-y divide-border overflow-hidden">
 								{items.map((m) => (
 									<li key={m.id} className="flex items-start gap-3 px-4 py-3">
 										<div className="min-w-0 flex-1">
@@ -177,7 +177,7 @@ export function MemoryPage() {
 					This permanently deletes the memory and any summary merged from it.
 					The audit log records the deletion (without the text).
 				</p>
-				<blockquote className="my-3 border-l-2 border-border pl-3 text-sm text-muted">
+				<blockquote className="my-3 rounded-xl bg-surface-2 px-4 py-3 text-sm text-muted">
 					{deleting?.text}
 				</blockquote>
 				<ErrorNote error={remove.error} />

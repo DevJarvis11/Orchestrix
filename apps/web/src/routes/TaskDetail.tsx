@@ -17,6 +17,7 @@ import { Markdown } from "../components/Markdown";
 import { StatusBadge } from "../components/StatusBadge";
 import {
 	Button,
+	buttonClass,
 	Card,
 	Empty,
 	ErrorNote,
@@ -96,7 +97,7 @@ export function TaskDetail() {
 					<Link
 						to="/runs/$runId/trace"
 						params={{ runId }}
-						className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border px-3 text-sm"
+						className={buttonClass()}
 					>
 						<Network aria-hidden className="size-4" /> Trace
 					</Link>
@@ -105,7 +106,7 @@ export function TaskDetail() {
 					<Link
 						to="/runs/$runId/replay"
 						params={{ runId }}
-						className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border px-3 text-sm"
+						className={buttonClass()}
 					>
 						<History aria-hidden className="size-4" /> Replay
 					</Link>
@@ -124,7 +125,7 @@ export function TaskDetail() {
 			{t.failure_reason && (
 				<p
 					role="alert"
-					className="mb-3 flex items-center gap-2 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger"
+					className="mb-3 flex items-center gap-2 rounded-xl bg-danger/10 px-3.5 py-2.5 text-sm text-danger"
 				>
 					<AlertTriangle aria-hidden className="size-4" /> {t.failure_reason}
 				</p>
@@ -175,18 +176,23 @@ export function TaskDetail() {
 					<Card
 						title="Live events"
 						actions={
-							<span className="flex items-center gap-1 text-xs text-muted">
-								<Activity
-									aria-hidden
-									className={`size-3.5 ${connected ? "text-st-approved" : ""}`}
-								/>
-								{connected ? "live" : "idle"}
+							<span className="flex items-center gap-1.5 text-xs text-muted">
+								<span className="relative flex size-2">
+									{connected && (
+										<span className="absolute inline-flex size-full animate-ping rounded-full bg-st-approved opacity-60" />
+									)}
+									<span
+										className={`relative inline-flex size-2 rounded-full ${connected ? "bg-st-approved" : "bg-faint"}`}
+									/>
+								</span>
+								<Activity aria-hidden className="size-3.5" />
+								{connected ? "Live" : "Idle"}
 							</span>
 						}
 					>
 						<ol
 							aria-live="polite"
-							className="max-h-[32rem] space-y-1.5 overflow-y-auto text-sm"
+							className="max-h-[32rem] overflow-y-auto pl-1 text-sm"
 						>
 							{events.length === 0 && (
 								<li className="text-muted">No events yet.</li>
@@ -194,9 +200,13 @@ export function TaskDetail() {
 							{[...events].reverse().map(({ id, event }) => (
 								<li
 									key={id}
-									className="border-b border-border pb-1.5 last:border-0"
+									className="relative border-l border-border pb-4 pl-4 last:border-transparent last:pb-0"
 								>
-									<span className="mr-2 font-mono text-xs text-muted">
+									<span
+										aria-hidden
+										className="absolute top-1 -left-[5px] size-2.5 rounded-full bg-accent ring-4 ring-surface"
+									/>
+									<span className="block font-mono text-[11px] text-muted">
 										{event.type}
 									</span>
 									{describeEvent(event)}
@@ -238,7 +248,7 @@ function CostPanel({
 			title="Cost"
 			actions={
 				e.fallbacks.calls > 0 && (
-					<span className="inline-flex items-center gap-1 rounded-full border border-st-human/50 bg-st-human/10 px-2 py-0.5 text-xs text-st-human">
+					<span className="inline-flex items-center gap-1 rounded-full bg-st-human/12 px-2 py-0.5 text-xs text-st-human">
 						<AlertTriangle aria-hidden className="size-3.5" /> fell back on{" "}
 						{e.fallbacks.calls} call{e.fallbacks.calls > 1 ? "s" : ""}
 					</span>
@@ -330,7 +340,7 @@ function Deliverable({
 					<a
 						href={doc.data.url}
 						download="deliverable.md"
-						className="inline-flex items-center gap-1 text-sm text-accent hover:underline"
+						className={buttonClass("secondary", "sm")}
 					>
 						<Download aria-hidden className="size-4" /> Download
 					</a>
@@ -460,7 +470,7 @@ function SubtaskDrawer({
 						</>
 					)}
 					{result.notes && (
-						<p className="whitespace-pre-wrap rounded-md bg-surface-2 p-2 text-sm">
+						<p className="whitespace-pre-wrap rounded-xl bg-surface-2 p-3 text-sm">
 							{result.notes}
 						</p>
 					)}
@@ -472,10 +482,7 @@ function SubtaskDrawer({
 				<section className="mt-4 space-y-2">
 					<h3 className="font-semibold">Reviews</h3>
 					{reviews.map((r) => (
-						<div
-							key={r.id}
-							className="rounded-md border border-border p-2 text-sm"
-						>
+						<div key={r.id} className="rounded-xl bg-surface-2 p-3 text-sm">
 							<StatusBadge status={r.status} />{" "}
 							<span className="ml-1">{r.label}</span>
 							<p className="mt-1 whitespace-pre-wrap text-muted">

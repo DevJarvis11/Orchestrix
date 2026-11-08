@@ -101,7 +101,7 @@ export function Replay() {
 										type="button"
 										onClick={() => setCid(c.checkpoint_id)}
 										aria-current={cid === c.checkpoint_id || undefined}
-										className={`w-full rounded px-2 py-1.5 text-left hover:bg-surface-2 ${cid === c.checkpoint_id ? "bg-surface-2 font-semibold" : ""}`}
+										className={`w-full rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-fill ${cid === c.checkpoint_id ? "bg-accent/12 font-medium text-accent" : ""}`}
 									>
 										step {c.step ?? "?"} · {c.source ?? ""} →{" "}
 										{c.next.join(", ") || "end"}
@@ -128,7 +128,7 @@ export function Replay() {
 						) : (
 							<>
 								<ErrorNote error={state.error} />
-								<pre className="max-h-80 overflow-auto rounded-md bg-surface-2 p-2 text-xs">
+								<pre className="max-h-80 overflow-auto rounded-xl bg-surface-2 p-3 text-xs">
 									{JSON.stringify(state.data?.values, null, 2)}
 								</pre>
 							</>
@@ -225,7 +225,7 @@ function Side({ side }: { side: DiffData["left"] }) {
 function UnifiedDiff({ text }: { text: string }) {
 	if (!text) return <p className="text-xs text-muted">No differences.</p>;
 	return (
-		<pre className="max-h-72 overflow-auto rounded-md bg-surface-2 p-2 text-xs">
+		<pre className="max-h-72 overflow-auto rounded-xl bg-surface-2 p-3 text-xs">
 			{Array.from(text.split("\n").entries(), ([n, line]) => (
 				<span
 					key={`l${n}`}
