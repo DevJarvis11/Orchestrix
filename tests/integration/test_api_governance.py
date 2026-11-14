@@ -294,3 +294,29 @@ async def test_fr70_replay_is_operator_only_and_checks_the_checkpoint(
     assert (await client.get(f"/v1/runs/{run}/checkpoints", headers=operator)).json() == []
     missing = await client.post(f"/v1/runs/{run}/replay", json=body, headers=operator)
     assert missing.status_code == 404
+
+
+# --- dev password login ----------------------------------------------------------------------
+
+
+async def test_password_login_issues_a_working_token(client: httpx.AsyncClient) -> None:
+    from orchestrix_core.db.repos.dev_logins import DevLoginRepo
+
+    name = uuid.uuid4().hex[:8]
+    email = f"{name}@test.local"
+    users = UserRepo(resources(client).sessions)
+    row = await users.upsert(f"dev|{email}", email, name)
+    await users.ensure_team_member(row.id, "api-tests")
+    await DevLoginRepo(resources(client).sessions).set_password(
+        name, row.id, "pw-123", ["requester"]
+    )
+    bad = await client.post("/v1/auth/login", json={"username": name, "password": "nope"})
+    assert bad.status_code == 401
+    ok = await client.post("/v1/auth/login", json={"username": name, "password": "pw-123"})
+    assert ok.status_code == 200
+    headers = {"Authorization": f"Bearer {ok.json()['access_token']}"}
+    assert (await client.post("/v1/tasks", json=TASK, headers=headers)).status_code in (
+        200,
+        201,
+        202,
+    )

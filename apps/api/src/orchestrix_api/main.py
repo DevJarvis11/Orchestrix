@@ -21,6 +21,7 @@ from orchestrix_api.health import router as health_router
 from orchestrix_api.middleware import RequestIdMiddleware
 from orchestrix_api.routers import (
     admin,
+    auth,
     costs,
     escalations,
     memories,
@@ -118,6 +119,7 @@ def create_app(
     app.include_router(uploads.router)
     app.include_router(escalations.router)
     app.include_router(admin.router)
+    app.include_router(auth.router)
     app.include_router(observe.router)
     app.include_router(costs.router)
     app.include_router(memories.router)

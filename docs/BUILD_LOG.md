@@ -190,6 +190,11 @@ Resolved 2026-10-22. `uv.lock` and `pnpm-lock.yaml` are authoritative.
   - **`make web`:** runs Vite on 0.0.0.0, proxies `/v1` and `/healthz` to the API and sets `VITE_API_URL=""`, so the browser only needs port 5173 at the WSL IP.
   - **New `uuid()` helper:** over plain http the page is not a secure context and `crypto.randomUUID` is missing. The ask box failed with "crypto.randomUUID is not a function", so the helper falls back to `crypto.getRandomValues`.
   - **Verified:** a real browser on the WSL IP sent the create request with a valid key.
+- 2026-11-14: **Dev password login (user request):** in `AUTH_MODE=dev` the login screen takes a username and password instead of a pasted token.
+  - **Storage:** new `dev_logins` table (migration 0005), scrypt-hashed (stdlib, no new dependency). `make seed` upserts `admin`/`admin`, `alice`/`alice@123` and `bob`/`bob@123`.
+  - **Endpoint:** `POST /v1/auth/login` returns a dev JWT. It returns 404 outside dev mode and is limited to 10 attempts a minute per client. `make dev-token` still works for curl.
+  - **Assumption:** the admin password `admin` was inferred from "admin as admin".
+  - **Docs:** README and RUN_LOCALLY updated, including the `docker-credential-desktop.exe` fix (`~/.docker/config.json` set to `{}`).
 
 ## Open items for the user
 

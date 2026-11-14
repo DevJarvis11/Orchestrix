@@ -2,12 +2,13 @@ import { KeyRound, ShieldCheck } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { LogoMark } from "../components/Logo";
-import { Button, ErrorNote, Field, Textarea } from "../components/ui";
+import { Button, ErrorNote, Field, Input } from "../components/ui";
 import { AUTH_MODE, useAuth } from "../lib/auth";
 
 export function Login() {
-	const { login, error } = useAuth();
-	const [token, setToken] = useState("");
+	const { login, loginWithPassword, error } = useAuth();
+	const [username, setUsername] = useState("");
+	const [password, setPassword] = useState("");
 	return (
 		<main className="relative grid min-h-screen place-items-center overflow-hidden px-4 py-10">
 			<div
@@ -49,24 +50,32 @@ export function Login() {
 							className="space-y-4"
 							onSubmit={(e) => {
 								e.preventDefault();
-								void login(token);
+								void loginWithPassword(username, password);
 							}}
 						>
 							<p className="text-sm text-muted">
-								Development mode: paste a token from{" "}
-								<code className="rounded-md bg-fill px-1.5 py-0.5 font-mono text-xs text-fg">
-									make dev-token
-								</code>
-								. It is kept in memory only.
+								Development mode: sign in with a demo account (admin, alice or
+								bob).
 							</p>
-							<Field label="Dev token">
+							<Field label="Username">
 								{(id) => (
-									<Textarea
+									<Input
 										id={id}
-										rows={5}
-										className="font-mono text-xs"
-										value={token}
-										onChange={(e) => setToken(e.target.value)}
+										autoComplete="username"
+										value={username}
+										onChange={(e) => setUsername(e.target.value)}
+										required
+									/>
+								)}
+							</Field>
+							<Field label="Password">
+								{(id) => (
+									<Input
+										id={id}
+										type="password"
+										autoComplete="current-password"
+										value={password}
+										onChange={(e) => setPassword(e.target.value)}
 										required
 									/>
 								)}

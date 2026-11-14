@@ -69,6 +69,17 @@ class User(Base):
     created_at: Mapped[datetime] = _created_at()
 
 
+class DevLogin(Base):
+    """Username/password logins for AUTH_MODE=dev only (hashed; seeded by `make seed`)."""
+
+    __tablename__ = "dev_logins"
+
+    username: Mapped[str] = mapped_column(Text, primary_key=True)
+    user_id: Mapped[uuid.UUID] = _fk("users.id", ondelete="CASCADE")
+    password_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    roles: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False)
+
+
 class Team(Base):
     __tablename__ = "teams"
 

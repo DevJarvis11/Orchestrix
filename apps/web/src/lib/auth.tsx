@@ -1,6 +1,6 @@
 // Authentication (SPEC 15.4, 18.2): OIDC Authorization Code + PKCE against Keycloak with tokens
-// held in memory only (never localStorage) and silent renew; or, in dev mode, a pasted token
-// from `make dev-token`. Roles come from the token's realm_access.roles claim.
+// held in memory only (never localStorage) and silent renew; or, in dev mode, a username/password
+// exchanged at POST /v1/auth/login (a pasted `make dev-token` token still works via login()). Roles come from the token's realm_access.roles claim.
 import {
 	InMemoryWebStorage,
 	type User,
@@ -109,6 +109,7 @@ interface AuthState {
 	token: string | null;
 	ready: boolean;
 	login: (devToken?: string) => Promise<void>;
+	loginWithPassword: (username: string, password: string) => Promise<void>;
 	logout: () => Promise<void>;
 	error: string | null;
 }
@@ -189,6 +190,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		[accept],
 	);
 
+	const loginWithPassword = useCallback(
+		async (username: string, password: string) => {
+			setError(null);
+			try {
+				const base = import.meta.env.VITE_API_URL ?? "http://localhost:58100";
+				const res = await fetch(`${base}/v1/auth/login`, {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ username, password }),
+				});
+				if (!res.ok) {
+					const body = (await res.json().catch(() => ({}))) as {
+						detail?: string;
+					};
+					throw new Error(body.detail ?? `login failed (${res.status})`);
+				}
+				const { access_token } = (await res.json()) as {
+					access_token: string;
+				};
+				accept(access_token);
+			} catch (e) {
+				setError(e instanceof Error ? e.message : "login failed");
+			}
+		},
+		[accept],
+	);
+
 	const logout = useCallback(async () => {
 		accept(null);
 		if (userManager) await userManager.signoutRedirect().catch(() => undefined);
@@ -203,8 +231,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				identity = null;
 			}
 		}
-		return { identity, token, ready, login, logout, error };
-	}, [token, ready, login, logout, error]);
+		return { identity, token, ready, login, loginWithPassword, logout, error };
+	}, [token, ready, login, loginWithPassword, logout, error]);
 
 	return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

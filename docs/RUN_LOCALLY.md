@@ -71,11 +71,10 @@ make seed       # demo users in two teams, the showcase lesson memory, demo_data
 
 ```bash
 make web                                    # http://localhost:5173, or the printed WSL address from Windows
-make dev-token                             # prints a dev login token (paste it on the login screen)
-make dev-token EMAIL=bob@orchestrix.local TEAM=platform ROLES=requester,reviewer
+make dev-token EMAIL=bob@orchestrix.local TEAM=platform ROLES=requester,reviewer   # a JWT for curl (the UI uses the password form)
 ```
 
-Demo users (dev mode): alice (requester, platform), bob (reviewer, platform), carol (reviewer, research), dave (requester, research), oscar (operator), ada (admin). A requester cannot approve their own escalation, so approve as a different user.
+Sign in on the login screen with `admin` / `admin`, `alice` / `alice@123` or `bob` / `bob@123` (seeded by `make seed`, hashed in the `dev_logins` table). Other demo users (dev mode, token only): alice (requester, platform), bob (reviewer, platform), carol (reviewer, research), dave (requester, research), oscar (operator), ada (admin). A requester cannot approve their own escalation, so approve as a different user.
 
 ## 6. Run the showcase
 
@@ -92,7 +91,7 @@ make obs        # + Langfuse http://localhost:3100, Prometheus http://localhost:
 make dev-full   # + Keycloak http://localhost:8180 as well
 ```
 
-To log in with Keycloak instead of dev tokens, set `ORCHESTRIX_AUTH_MODE=oidc` in `.env`, run `make dev-full`, and start the web app with `VITE_AUTH_MODE=oidc`. Demo users share the password `KC_DEMO_PASSWORD` from `.env`. Langfuse and Grafana admin passwords are in `.env` too.
+To log in with Keycloak instead of the dev password form, set `ORCHESTRIX_AUTH_MODE=oidc` in `.env`, run `make dev-full`, and start the web app with `VITE_AUTH_MODE=oidc`. Demo users share the password `KC_DEMO_PASSWORD` from `.env`. Langfuse and Grafana admin passwords are in `.env` too.
 
 ## 8. Checks
 

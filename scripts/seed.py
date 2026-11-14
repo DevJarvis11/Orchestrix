@@ -13,6 +13,7 @@ import psycopg
 from psycopg import sql
 
 from orchestrix_core.config import get_settings, libpq_dsn
+from orchestrix_core.db.repos.dev_logins import DevLoginRepo
 from orchestrix_core.db.repos.tasks import UserRepo
 from orchestrix_core.db.session import create_engine, create_sessionmaker
 from orchestrix_memory.clients import EmbeddingUnavailable, GatewayEmbedder
@@ -28,6 +29,12 @@ USERS = (  # email, team(s)
     ("oscar@orchestrix.local", ["platform", "research"]),
     ("ada@orchestrix.local", ["platform"]),
     ("demo@orchestrix.local", ["demo"]),
+    ("admin@orchestrix.local", ["platform", "research"]),
+)
+LOGINS = (  # username, email, password, roles: dev-mode password logins (demo credentials)
+    ("admin", "admin@orchestrix.local", "admin", ["requester", "reviewer", "operator", "admin"]),
+    ("alice", "alice@orchestrix.local", "alice@123", ["requester"]),
+    ("bob", "bob@orchestrix.local", "bob@123", ["requester", "reviewer"]),
 )
 LESSON = "Benchmarks need the vendor's own source plus one independent source."
 
@@ -42,6 +49,11 @@ async def seed_users_and_memory() -> None:
         for team in teams:
             await users.ensure_team_member(user.id, team)
         print(f"user {email} -> {', '.join(teams)}")
+    logins = DevLoginRepo(sessions)
+    for username, email, password, roles in LOGINS:
+        user = await users.upsert(f"dev|{email}", email, username)
+        await logins.set_password(username, user.id, password, roles)
+        print(f"login {username} ({', '.join(roles)})")
     platform = await users.ensure_team_member(
         (await users.upsert("dev|bob@orchestrix.local", "bob@orchestrix.local", "bob")).id,
         "platform",

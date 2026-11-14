@@ -36,35 +36,48 @@ The full step-by-step guide, including how to switch models and troubleshoot, is
 
 Requirements: WSL Ubuntu 22.04, Docker, uv, Node 26 with pnpm. Copy nothing by hand: `make env` writes `.env` with random secrets.
 
+If `make dev` fails with `docker-credential-desktop.exe: exec format error`, run `echo '{}' > ~/.docker/config.json` (the Windows credential helper cannot run in WSL; only public images are pulled). If `make seed` fails with `server closed the connection`, wait until `make dev` reports healthy and run it again.
+
 First time only:
 
 ```bash
 uv sync && pnpm install   # Python and Node dependencies
 make dev                  # start the core stack and wait until healthy
 make migrate              # Alembic + LangGraph checkpointer tables
-make seed                 # demo users (two teams), the showcase lesson memory, demo_data tables
+make seed                 # demo users and logins (admin, alice, bob), the showcase lesson memory, demo_data tables
 ```
 
 Every time:
 
 ```bash
 make dev                  # core stack: Postgres, Redis, S3, OPA, LiteLLM, API, worker, scheduler, MCP servers, SearXNG
-make dev-token            # print a dev JWT to paste on the sign-in page (EMAIL=, TEAM=, ROLES=)
 make web                  # the UI on port 5173 (keep this terminal open; Ctrl+C stops it)
 ```
 
-Open the UI at **http://localhost:5173**. From a Windows browser, use the WSL address that `make web` prints, for example `http://192.168.117.53:5173`. WSL in its default NAT mode does not forward Windows `localhost`, and that address changes after a restart (`hostname -I` shows it). The UI calls the API through the dev server, so only port 5173 has to be reachable.
+Open the UI at **http://localhost:5173** and sign in (dev mode, passwords are stored hashed in Postgres by `make seed`):
+
+| Username | Password | Roles |
+|---|---|---|
+| `admin` | `admin` | requester, reviewer, operator, admin |
+| `alice` | `alice@123` | requester (platform team) |
+| `bob` | `bob@123` | requester, reviewer (platform team) |
+
+To try approvals, submit as alice and approve as bob: a requester cannot approve their own escalation. For curl, `make dev-token` still prints a JWT (EMAIL=, TEAM=, ROLES=).
+
+To see tasks in the UI, run `make demo` (recorded fixtures, no web access) or, with the VPN on, `uv run python scripts/showcase.py`.
+
+ From a Windows browser, use the WSL address that `make web` prints, for example `http://192.168.117.53:5173`. WSL in its default NAT mode does not forward Windows `localhost`, and that address changes after a restart (`hostname -I` shows it). The UI calls the API through the dev server, so only port 5173 has to be reachable.
 
 Stop everything:
 
 ```bash
-# Ctrl+C in the make web terminal, then:
+# Ctrl+C in the make web terminal (or `fuser -k 5173/tcp`), then:
 make down                 # stop every container (data volumes are kept)
 ```
 
 For a live run on Yotta `gpt-oss-120b`, switch the VPN on first. Without it, tasks fall back to local `qwen3:8b` when `ORCHESTRIX_LOCAL_FALLBACK=true`.
 
-Profiles: `make obs` adds Langfuse (http://localhost:3100), Prometheus and Grafana (http://localhost:3101), and switches tracing on. `make dev-full` also adds Keycloak (http://localhost:8180). To use Keycloak logins, set `ORCHESTRIX_AUTH_MODE=oidc`. The demo users are alice, bob, carol, dave, oscar and ada, and their password is `KC_DEMO_PASSWORD` in `.env`.
+Profiles: `make obs` adds Langfuse (http://localhost:3100), Prometheus and Grafana (http://localhost:3101), and switches tracing on. `make dev-full` also adds Keycloak (http://localhost:8180). To use Keycloak logins instead of the password form, set `ORCHESTRIX_AUTH_MODE=oidc`. The demo users are alice, bob, carol, dave, oscar and ada, and their password is `KC_DEMO_PASSWORD` in `.env`.
 
 Models: the app is model-agnostic. Agents ask for a role, `ORCHESTRIX_DEFAULT_MODELS` in `.env` maps each role to a model, and `infra/litellm/config.yaml` defines the models (provider and price). The defaults are Yotta `gpt-oss-120b` for chat, `qwen3-embed` and `qwen3-rerank` over the VPN. `ORCHESTRIX_LOCAL_FALLBACK=true` adds a host-Ollama fallback. `make gateway-check` probes every model in the catalogue.
 
